@@ -6,7 +6,7 @@ For decoding and encoding *.tif files it uses the native library [libtiff](https
 Just now it has possibility to open tif image as mutable bitmap, read count of directory in file, apply sample rate for bitmap decoding and choose directory to decode.
 While saving there is available few(most popular) compression mods and some additiona fields that can be writen to file, like author or copyright.
 
-Minimum Android API level 16
+Minimum Android API level 21
 
 Supported architectures: all
 
