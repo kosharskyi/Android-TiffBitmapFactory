@@ -6,27 +6,23 @@ android {
     compileSdkVersion 36
     buildToolsVersion '36.0.0'
 
-    def softwareName
+    namespace "org.beyka.tiffbitmapfactory"
 
     defaultConfig {
         minSdkVersion 21
         targetSdkVersion 35
-        versionCode 987
-        versionName "0.9.9.0"
-
-        softwareName = "\"" + project.name + "-" + versionName + "\""
+        versionCode 988
+        versionName "0.9.9.2"
     }
 
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            buildConfigField("String", "softwarename", softwareName)
         }
         debug {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            buildConfigField("String", "softwarename", softwareName)
         }
     }
 
@@ -36,20 +32,18 @@ android {
         jni.srcDirs = []
         jniLibs.srcDir 'src/main/libs'
     }
-}
 
-android {
     lintOptions {
         abortOnError false
     }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+   
 }
+
 
 dependencies {
 }
-
-ext {
-    PUBLISH_GROUP_ID = 'io.github.beyka'
-    PUBLISH_VERSION = '0.9.9.0'
-    PUBLISH_ARTIFACT_ID = 'Android-TiffBitmapFactory'
-}
-apply from: "${rootProject.projectDir}/publish-module.gradle"
