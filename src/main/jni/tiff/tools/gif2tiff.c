@@ -1,4 +1,4 @@
-/* $Id: gif2tiff.c,v 1.8 2004/09/02 14:36:33 dron Exp $ */
+/* $Id: gif2tiff.c,v 1.8.2.2 2010-12-15 00:22:05 faxguy Exp $ */
 
 /*
  * Copyright (c) 1990-1997 Sam Leffler
@@ -503,6 +503,10 @@ rasterize(int interleaved, char* mode)
     strip = 0;
     stripsize = TIFFStripSize(tif);
     for (row=0; row<height; row += rowsperstrip) {
+	if (rowsperstrip > height-row) {
+	    rowsperstrip = height-row;
+	    stripsize = TIFFVStripSize(tif, rowsperstrip);
+	}
 	if (TIFFWriteEncodedStrip(tif, strip, newras+row*width, stripsize) < 0)
 	    break;
 	strip++;
@@ -513,3 +517,10 @@ rasterize(int interleaved, char* mode)
 }
 
 /* vim: set ts=8 sts=8 sw=8 noet: */
+/*
+ * Local Variables:
+ * mode: c
+ * c-basic-offset: 8
+ * fill-column: 78
+ * End:
+ */

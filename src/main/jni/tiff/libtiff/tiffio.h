@@ -1,4 +1,4 @@
-/* $Id: tiffio.h,v 1.56.2.3 2009-01-01 00:10:43 bfriesen Exp $ */
+/* $Id: tiffio.h,v 1.56.2.5 2012-02-18 16:20:02 bfriesen Exp $ */
 
 /*
  * Copyright (c) 1988-1997 Sam Leffler
@@ -437,10 +437,10 @@ extern	TIFF* TIFFClientOpen(const char*, const char*,
 	    TIFFMapFileProc, TIFFUnmapFileProc);
 extern	const char* TIFFFileName(TIFF*);
 extern	const char* TIFFSetFileName(TIFF*, const char *);
-extern void TIFFError(const char*, const char*, ...) __attribute__((format (printf,2,3)));
-extern void TIFFErrorExt(thandle_t, const char*, const char*, ...) __attribute__((format (printf,3,4)));
-extern void TIFFWarning(const char*, const char*, ...) __attribute__((format (printf,2,3)));
-extern void TIFFWarningExt(thandle_t, const char*, const char*, ...) __attribute__((format (printf,3,4)));
+extern void TIFFError(const char*, const char*, ...) __attribute__((__format__ (__printf__,2,3)));
+extern void TIFFErrorExt(thandle_t, const char*, const char*, ...) __attribute__((__format__ (__printf__,3,4)));
+extern void TIFFWarning(const char*, const char*, ...) __attribute__((__format__ (__printf__,2,3)));
+extern void TIFFWarningExt(thandle_t, const char*, const char*, ...) __attribute__((__format__ (__printf__,3,4)));
 extern	TIFFErrorHandler TIFFSetErrorHandler(TIFFErrorHandler);
 extern	TIFFErrorHandlerExt TIFFSetErrorHandlerExt(TIFFErrorHandlerExt);
 extern	TIFFErrorHandler TIFFSetWarningHandler(TIFFErrorHandler);
@@ -517,3 +517,10 @@ extern void TIFFYCbCrtoRGB(TIFFYCbCrToRGB *, uint32, int32, int32,
 #endif /* _TIFFIO_ */
 
 /* vim: set ts=8 sts=8 sw=8 noet: */
+/*
+ * Local Variables:
+ * mode: c
+ * c-basic-offset: 8
+ * fill-column: 78
+ * End:
+ */

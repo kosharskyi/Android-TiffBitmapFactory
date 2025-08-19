@@ -1,4 +1,4 @@
-/* $Id: check_tag.c,v 1.2 2006/03/23 14:54:02 dron Exp $ */
+/* $Id: check_tag.c,v 1.2.2.3 2010-06-21 20:17:27 bfriesen Exp $ */
 
 /*
  * Copyright (c) 2004, Andrey Kiselev  <dron@ak4719.spb.edu>
@@ -28,6 +28,10 @@
  *
  * Module to test LONG tags read/write functions.
  */
+
+#include "tif_config.h"
+
+#include <stdio.h>
 
 #include "tiffio.h"
 
@@ -70,3 +74,10 @@ CheckLongField(TIFF *tif, ttag_t field, uint32 value)
 }
 
 
+/*
+ * Local Variables:
+ * mode: c
+ * c-basic-offset: 8
+ * fill-column: 78
+ * End:
+ */
