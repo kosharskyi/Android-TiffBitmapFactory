@@ -42,10 +42,10 @@ LOCAL_TIFF_SRC_FILES := \
         libtiff/tif_unix.c \
         libtiff/tif_version.c \
         libtiff/tif_warning.c \
-        libtiff/tif_write.c \
-        libtiff/tif_webp.c \
-		libtiff/tif_zstd.c \
-        libtiff/tif_zip.c
+		libtiff/tif_webp.c \
+		libtiff/tif_write.c \
+		libtiff/tif_zip.c \
+		libtiff/tif_zstd.c
 
 LOCAL_TIFF_SRC_FILES += port/lfind.c 
 ###########################################################
