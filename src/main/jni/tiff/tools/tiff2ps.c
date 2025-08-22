@@ -1,5 +1,3 @@
-/* $Id: tiff2ps.c,v 1.54 2015-06-21 01:09:10 bfriesen Exp $ */
-
 /*
  * Copyright (c) 1988-1997 Sam Leffler
  * Copyright (c) 1991-1997 Silicon Graphics, Inc.
@@ -63,7 +61,7 @@
  *    if not specified on the command line.
  *    Add new command line option to specify document creator
  *    as an alterntive to the string "tiff2ps" following model
- *    of patch submitted by Thomas Jarosch for specifiying a
+ *    of patch submitted by Thomas Jarosch for specifying a
  *    document title which is also supported now.
  *
  * 2009-Feb-11
@@ -73,7 +71,7 @@
  *    or landscape) if -h or -w is specified. Rotation is in
  *    degrees counterclockwise since that is how Postscript does
  *    it. The auto opption rotates the image 90 degrees ccw to
- *    produce landscape if that is a better fit than portait.
+ *    produce landscape if that is a better fit than portrait.
  *
  *    Cleaned up code in TIFF2PS and broke into smaller functions
  *    to simplify rotations.
@@ -466,10 +464,16 @@ main(int argc, char* argv[])
 		if (tif != NULL) {
 			if (dirnum != -1
                             && !TIFFSetDirectory(tif, (tdir_t)dirnum))
+                        {
+                                TIFFClose(tif);
 				return (-1);
+                        }
 			else if (diroff != 0 &&
 			    !TIFFSetSubDirectory(tif, diroff))
+                        {
+                                TIFFClose(tif);
 				return (-1);
+                        }
 			np = TIFF2PS(output, tif, pageWidth, pageHeight,
 				     leftmargin, bottommargin, centered);
                         if (np < 0)
@@ -514,7 +518,7 @@ checkImage(TIFF* tif)
 			    "PhotometricInterpretation=YCbCr");
 			return (0);
 		}
-		/* fall thru... */
+		/* fall through... */
 	case PHOTOMETRIC_RGB:
 		if (alpha && bitspersample != 8) {
 			TIFFError(filename,
@@ -522,7 +526,7 @@ checkImage(TIFF* tif)
 			    bitspersample);
 			return (0);
 		}
-		/* fall thru... */
+		/* fall through... */
 	case PHOTOMETRIC_SEPARATED:
 	case PHOTOMETRIC_PALETTE:
 	case PHOTOMETRIC_MINISBLACK:
@@ -546,7 +550,7 @@ checkImage(TIFF* tif)
 		bitspersample = 8;
 		break;
 	case PHOTOMETRIC_CIELAB:
-		/* fall thru... */
+		/* fall through... */
 	default:
 		TIFFError(filename,
 		    "Can not handle image with PhotometricInterpretation=%d",
@@ -2440,6 +2444,11 @@ PSDataColorContig(FILE* fd, TIFF* tif, uint32 w, uint32 h, int nc)
 	unsigned char *cp, c;
 
 	(void) w;
+        if( es <= 0 )
+        {
+            TIFFError(filename, "Inconsistent value of es: %d", es);
+            return;
+        }
 	tf_buf = (unsigned char *) _TIFFmalloc(tf_bytesperrow);
 	if (tf_buf == NULL) {
 		TIFFError(filename, "No space for scanline buffer");
@@ -2692,7 +2701,7 @@ PSDataBW(FILE* fd, TIFF* tif, uint32 w, uint32 h)
 
 			if (alpha) {
 				int adjust;
-				while (cc-- > 0) {
+				while (cc-- > 1) {
 					DOBREAK(breaklen, 1, fd);
 					/*
 					 * For images with alpha, matte against

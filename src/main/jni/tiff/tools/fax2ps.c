@@ -1,5 +1,3 @@
-/* $Id: fax2ps.c,v 1.29 2015-06-21 01:09:09 bfriesen Exp $" */
-
 /*
  * Copyright (c) 1991-1997 Sam Leffler
  * Copyright (c) 1991-1997 Silicon Graphics, Inc.
@@ -47,6 +45,7 @@
 # include "libport.h"
 #endif
 
+#include "tiffiop.h"
 #include "tiffio.h"
 
 float	defxres = 204.;		/* default x resolution (pixels/inch) */
@@ -397,9 +396,15 @@ main(int argc, char** argv)
 #if defined(HAVE_SETMODE) && defined(O_BINARY)
 	setmode(fileno(stdin), O_BINARY);
 #endif
-	while ((n = read(fileno(stdin), buf, sizeof (buf))) > 0)
-	    write(fileno(fd), buf, n);
-	lseek(fileno(fd), 0, SEEK_SET);
+	while ((n = read(fileno(stdin), buf, sizeof (buf))) > 0) {
+                if (write(fileno(fd), buf, n) != n) {
+                        fclose(fd);
+                        fprintf(stderr,
+                                "Could not copy stdin to temporary file.\n");
+                        exit(-2);  
+                }
+        }
+	_TIFF_lseek_f(fileno(fd), 0, SEEK_SET);
 #if defined(_WIN32) && defined(USE_WIN32_FILEIO)
 	tif = TIFFFdOpen(_get_osfhandle(fileno(fd)), "temp", "r");
 #else

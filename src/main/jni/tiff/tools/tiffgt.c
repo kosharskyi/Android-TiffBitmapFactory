@@ -1,5 +1,3 @@
-/* $Id: tiffgt.c,v 1.13 2015-06-21 01:09:11 bfriesen Exp $ */
-
 /*
  * Copyright (c) 1988-1997 Sam Leffler
  * Copyright (c) 1991-1997 Silicon Graphics, Inc.
@@ -29,13 +27,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#if HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 
-#if HAVE_APPLE_OPENGL_FRAMEWORK
+#ifdef HAVE_OPENGL_GL_H
 # include <OpenGL/gl.h>
+#else
+# ifdef _WIN32
+#  include <windows.h>
+# endif
+# include <GL/gl.h>
+#endif
+#ifdef HAVE_GLUT_GLUT_H
 # include <GLUT/glut.h>
 #else
-# include <GL/gl.h>
 # include <GL/glut.h>
 #endif
 
@@ -78,6 +84,12 @@ static void	raster_special(int, int, int);
 extern  char* optarg;
 extern  int optind;
 #endif
+
+/* GLUT framework on MacOS X produces deprecation warnings */
+# if defined(__GNUC__) && defined(__APPLE__)
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+# endif
 
 static TIFF* tif = NULL;
 
@@ -405,7 +417,10 @@ raster_special(int key, int x, int y)
         glutPostRedisplay();
 }
 
-
+/* GLUT framework on MacOS X produces deprecation warnings */
+# if defined(__GNUC__) && defined(__APPLE__)
+#  pragma GCC diagnostic pop
+# endif
 
 char* stuff[] = {
 "usage: tiffgt [options] file.tif",
