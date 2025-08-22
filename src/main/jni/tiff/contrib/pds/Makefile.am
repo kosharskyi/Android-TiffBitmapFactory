@@ -25,4 +25,3 @@
 
 EXTRA_DIST = README tif_imageiter.c tif_imageiter.h tif_pdsdirread.c tif_pdsdirwrite.c
 
-AM_CPPFLAGS = -I../../libtiff -I$(top_srcdir)/libtiff

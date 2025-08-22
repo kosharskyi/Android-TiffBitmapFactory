@@ -32,5 +32,5 @@ noinst_PROGRAMS = addtiffo
 addtiffo_SOURCES = addtiffo.c tif_overview.c tif_ovrcache.c tif_ovrcache.h
 addtiffo_LDADD = $(LIBTIFF)
 
-AM_CPPFLAGS = -I../../libtiff -I$(top_srcdir)/libtiff
+AM_CPPFLAGS = -I$(top_srcdir)/libtiff
 

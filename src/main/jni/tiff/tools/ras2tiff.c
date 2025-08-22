@@ -1,4 +1,4 @@
-/* $Id: ras2tiff.c,v 1.15.2.1 2010-06-08 18:50:44 bfriesen Exp $ */
+/* $Id: ras2tiff.c,v 1.22 2015-06-21 01:09:10 bfriesen Exp $ */
 
 /*
  * Copyright (c) 1988-1997 Sam Leffler
@@ -30,9 +30,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <limits.h>
 
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>
+#endif
+
+#ifdef NEED_LIBPORT
+# include "libport.h"
 #endif
 
 #include "rasterfile.h"
@@ -65,8 +70,10 @@ main(int argc, char* argv[])
 	uint16 config = PLANARCONFIG_CONTIG;
 	uint32 rowsperstrip = (uint32) -1;
 	int c;
+#if !HAVE_DECL_OPTARG
 	extern int optind;
 	extern char* optarg;
+#endif
 
 	while ((c = getopt(argc, argv, "c:r:h")) != -1)
 		switch (c) {
@@ -90,6 +97,7 @@ main(int argc, char* argv[])
 	}
 	if (fread(&h, sizeof (h), 1, in) != 1) {
 		fprintf(stderr, "%s: Can not read header.\n", argv[optind]);
+		fclose(in);
 		return (-2);
 	}
 	if (strcmp(h.ras_magic, RAS_MAGIC) == 0) {
@@ -114,11 +122,34 @@ main(int argc, char* argv[])
 #endif
 	} else {
 		fprintf(stderr, "%s: Not a rasterfile.\n", argv[optind]);
+		fclose(in);
 		return (-3);
 	}
+        if ((h.ras_width <= 0) || (h.ras_width >= INT_MAX) ||
+            (h.ras_height <= 0) || (h.ras_height >= INT_MAX) ||
+            (h.ras_depth <= 0) || (h.ras_depth >= INT_MAX) ||
+            (h.ras_length <= 0) || (h.ras_length >= INT_MAX) ||
+            (h.ras_type <= 0) ||
+            (h.ras_maptype <= 0) ||
+            (h.ras_maplength <= 0) || (h.ras_maplength >= INT_MAX)) {
+                fprintf(stderr, "%s: Improper image header.\n", argv[optind]);
+                fclose(in);
+		return (-2);
+        }
+        if ((h.ras_depth != 1) &&
+            (h.ras_depth != 8) &&
+            (h.ras_depth != 24)) {
+                fprintf(stderr, "%s: Improper image depth (%d).\n",
+                        argv[optind], h.ras_depth);
+                fclose(in);
+		return (-2);
+        }
 	out = TIFFOpen(argv[optind+1], "w");
 	if (out == NULL)
+	{
+		fclose(in);
 		return (-4);
+	}
 	TIFFSetField(out, TIFFTAG_IMAGEWIDTH, (uint32) h.ras_width);
 	TIFFSetField(out, TIFFTAG_IMAGELENGTH, (uint32) h.ras_height);
 	TIFFSetField(out, TIFFTAG_ORIENTATION, ORIENTATION_TOPLEFT);
@@ -144,7 +175,7 @@ main(int argc, char* argv[])
 		mapsize = 1<<h.ras_depth; 
 		if (h.ras_maplength > mapsize*3) {
 			fprintf(stderr,
-			    "%s: Huh, %ld colormap entries, should be %d?\n",
+			    "%s: Huh, %d colormap entries, should be %d?\n",
 			    argv[optind], h.ras_maplength, mapsize*3);
 			return (-7);
 		}
@@ -220,6 +251,7 @@ main(int argc, char* argv[])
 			break;
 	}
 	(void) TIFFClose(out);
+	fclose(in);
 	return (0);
 }
 

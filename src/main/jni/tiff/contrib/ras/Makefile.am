@@ -25,4 +25,3 @@
 
 EXTRA_DIST = README ras2tif.c tif2ras.c
 
-AM_CPPFLAGS = -I../../libtiff -I$(top_srcdir)/libtiff

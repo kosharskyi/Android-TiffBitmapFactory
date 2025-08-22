@@ -1,4 +1,4 @@
-/* $Id: fax2tiff.c,v 1.19.2.1 2010-06-08 18:50:43 bfriesen Exp $ */
+/* $Id: fax2tiff.c,v 1.23 2015-06-21 01:09:10 bfriesen Exp $ */
 
 /*
  * Copyright (c) 1990-1997 Sam Leffler
@@ -42,6 +42,10 @@
 
 #ifdef HAVE_IO_H
 # include <io.h>
+#endif
+
+#ifdef NEED_LIBPORT
+# include "libport.h"
 #endif
 
 #include "tiffiop.h"
@@ -91,9 +95,11 @@ main(int argc, char* argv[])
 	int c;
 	int pn, npages;
 	float resY = 196.0;
+
+#if !HAVE_DECL_OPTARG
 	extern int optind;
 	extern char* optarg;
-
+#endif
 
 	while ((c = getopt(argc, argv, "R:X:o:1234ABLMPUW5678abcflmprsuvwz?")) != -1)
 		switch (c) {
@@ -347,7 +353,7 @@ copyFaxFile(TIFF* tifin, TIFF* tifout)
 	uint16 badrun;
 	int ok;
 
-	tifin->tif_rawdatasize = TIFFGetFileSize(tifin);
+	tifin->tif_rawdatasize = (tmsize_t)TIFFGetFileSize(tifin);
 	tifin->tif_rawdata = _TIFFmalloc(tifin->tif_rawdatasize);
 	if (tifin->tif_rawdata == NULL) {
 		TIFFError(tifin->tif_name, "Not enough memory");

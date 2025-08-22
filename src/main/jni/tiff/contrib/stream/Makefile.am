@@ -25,4 +25,3 @@
 
 EXTRA_DIST = README tiffstream.cpp tiffstream.h
 
-AM_CPPFLAGS = -I../../libtiff -I$(top_srcdir)/libtiff

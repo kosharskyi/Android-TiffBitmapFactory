@@ -23,16 +23,12 @@
       <td><a href="http://libtiff.maptools.org/" title="Mirror of the LibTIFF software">http://libtiff.maptools.org/</a></td>
     </tr>
     <tr>
-      <th>Latest Old Stable 3.9.X Release</th>
-      <td><a href="v3.9.7.html">v3.9.7</a></td>
+      <th>Latest Stable Release</th>
+      <td><a href="v4.0.4.html">v4.0.4</a></td>
     </tr>
     <tr>
       <th>Master Download Site</th>
-      <td><a href="ftp://ftp.remotesensing.org/pub/libtiff">ftp.remotesensing.org</a>, directory pub/libtiff</td>
-    </tr>
-    <tr>
-      <th>Mirror Download Site</th>
-      <td><a href="http://libtiff.maptools.org/dl/">http://libtiff.maptools.org/dl/</a></td>
+      <td><a href="http://download.osgeo.org/libtiff">download.osgeo.org</a>, directory libtiff</td>
     </tr>
     <tr>
       <th>Windows Binaries</th>
@@ -51,10 +47,10 @@
       <td><tt>export CVSROOT=:pserver:cvsanon@cvs.maptools.org:/cvs/maptools/cvsroot<br>
 	cvs login</tt><br>
 	(use empty password)<br>
-	<tt>cvs checkout -r branch-3-9 libtiff<br></tt>
-	to get stable libtiff branch, or<br>
-	<tt>cvs checkout libtiff</tt><br>
-	to get bleeding edge development version of libtiff from CVS HEAD.</td>
+	<tt>cvs checkout libtiff<br></tt>
+	to get the stable libtiff code or<br>
+	<tt>cvs checkout -r branch-3-9 libtiff</tt><br>
+	to get the previous stable branch supporting the 3.9.X release series.</td>
     </tr>
   </table>
   <hr>
@@ -65,13 +61,13 @@
     in several different formats.
   </p>
   <p>
-    Included in this software distribution is a library, libtiff, for reading
-    and writing TIFF, a small collection of tools for doing simple
-    manipulations of TIFF images, and documentation on the
-    library and tools.  Libtiff is a portable software, it was built and
-    tested on various systems: UNIX flavors (Linux, BSD, Solaris, MacOS X),
-    Windows, and OpenVMS.  It should be possible to port libtiff and additional
-    tools to other OSes.
+    Included in this software distribution is a library, libtiff, for
+    reading and writing TIFF, a small collection of tools for doing
+    simple manipulations of TIFF images, and documentation on the
+    library and tools.  Libtiff is a portable software, it was built
+    and tested on various systems: UNIX flavors (Linux, BSD, Solaris,
+    MacOS X), Windows, and OpenVMS.  It should be possible to port
+    libtiff and additional tools on other OSes.
   </p>
   <p>
     The library, along with associated tool programs, should handle most of
@@ -92,8 +88,8 @@
     versions &gt;= 3.5.1 are
     <a href="http://pobox.com/~warmerdam">Frank Warmerdam</a>,
     <a href="mailto:dron@ak4719.spb.edu">Andrey Kiselev</a>,
-    <a href="mailto:bfriesen@simple.dallas.tx.us">Bob Friesenhahn</a>, 
-    Joris Van Damme, Lee Howard, and Olivier Paquet.
+    <a href="mailto:bfriesen@GraphicsMagick.org">Bob Friesenhahn</a>, 
+    Joris Van Damme and Lee Howard.
   </p>
   <p>
     The following sections are included in this documentation:
@@ -112,9 +108,16 @@
     <li><a href="misc.html">Acknowledgements and copyright issues</a></li>
     <li><a href="man/index.html">Man Pages</a></li>
   </ul>
+  <p>
+    <b>BigTIFF News</b>
+  </p>
+  <ul>
+    <li><a href="BigTIFFProposal.html">BigTIFF project proposal</a> (work is completed!)</li>
+    <li><a href="bigtiffpr.html">Press release: Currently extending LibTiff</a> (work is completed!)</li>
+  </ul>
   <hr>
   <p>
-    Last updated  $Date: 2012-02-18 22:24:55 $.
+    Last updated  $Date: 2015-01-26 12:24:12 $.
   </p>
 </body>
 </html>

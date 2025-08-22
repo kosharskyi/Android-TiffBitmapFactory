@@ -36,8 +36,7 @@ EXTRA_DIST = Makefile.vc \
 	     tiffconf.wince.h \
 	     libtiff.def \
 	     libtiff.map \
-	     libtiffxx.map \
-	     $(EXTRA_SRCS)
+	     libtiffxx.map
 
 libtiffinclude_HEADERS = \
 	tiff.h \
@@ -77,7 +76,9 @@ libtiff_la_SOURCES = \
 	tif_getimage.c \
 	tif_jbig.c \
 	tif_jpeg.c \
+	tif_jpeg_12.c \
 	tif_luv.c \
+	tif_lzma.c \
 	tif_lzw.c \
 	tif_next.c \
 	tif_ojpeg.c \
@@ -91,7 +92,6 @@ libtiff_la_SOURCES = \
 	tif_swab.c \
 	tif_thunder.c \
 	tif_tile.c \
-	tif_unix.c \
 	tif_version.c \
 	tif_warning.c \
 	tif_write.c \
@@ -100,14 +100,13 @@ libtiff_la_SOURCES = \
 libtiffxx_la_SOURCES = \
 	tif_stream.cxx
 
-EXTRA_SRCS = \
-	tif_acorn.c \
-	tif_apple.c \
-	tif_atari.c \
-	tif_msdos.c \
-	tif_next.c \
-	tif_win3.c \
-	tif_win32.c
+if WIN32_IO
+EXTRA_DIST += tif_unix.c
+libtiff_la_SOURCES += tif_win32.c
+else
+EXTRA_DIST += tif_win32.c
+libtiff_la_SOURCES += tif_unix.c
+endif
 
 lib_LTLIBRARIES = libtiff.la
 if HAVE_CXX
@@ -116,7 +115,7 @@ endif
 
 libtiff_la_LDFLAGS = \
 	-no-undefined \
-	-version-number $(LIBTIFF_VERSION_INFO)
+	-version-info $(LIBTIFF_VERSION_INFO)
 if HAVE_RPATH
 libtiff_la_LDFLAGS += $(LIBDIR)
 endif
@@ -127,7 +126,7 @@ libtiff_la_LIBADD = $(LIBPORT)
 
 libtiffxx_la_LDFLAGS = \
 	-no-undefined \
-	-version-number $(LIBTIFF_VERSION_INFO)
+	-version-info $(LIBTIFF_VERSION_INFO)
 if HAVE_RPATH
 libtiffxx_la_LDFLAGS += $(LIBDIR)
 endif

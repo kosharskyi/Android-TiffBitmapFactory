@@ -1,4 +1,4 @@
-/* $Id: pal2rgb.c,v 1.10.2.2 2010-07-02 12:03:27 dron Exp $ */
+/* $Id: pal2rgb.c,v 1.15 2015-06-21 01:09:10 bfriesen Exp $ */
 
 /*
  * Copyright (c) 1988-1997 Sam Leffler
@@ -33,6 +33,10 @@
 
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>
+#endif
+
+#ifdef NEED_LIBPORT
+# include "libport.h"
 #endif
 
 #include "tiffio.h"
@@ -77,8 +81,11 @@ main(int argc, char* argv[])
 	int cmap = -1;
 	TIFF *in, *out;
 	int c;
+
+#if !HAVE_DECL_OPTARG
 	extern int optind;
 	extern char* optarg;
+#endif
 
 	while ((c = getopt(argc, argv, "C:c:p:r:")) != -1)
 		switch (c) {
@@ -368,7 +375,7 @@ static struct cpTag {
     { TIFFTAG_CLEANFAXDATA,		1, TIFF_SHORT },
     { TIFFTAG_CONSECUTIVEBADFAXLINES,	1, TIFF_LONG },
     { TIFFTAG_INKSET,			1, TIFF_SHORT },
-    { TIFFTAG_INKNAMES,			1, TIFF_ASCII },
+    /*{ TIFFTAG_INKNAMES,			1, TIFF_ASCII },*/ /* Needs much more complicated logic. See tiffcp */
     { TIFFTAG_DOTRANGE,			2, TIFF_SHORT },
     { TIFFTAG_TARGETPRINTER,		1, TIFF_ASCII },
     { TIFFTAG_SAMPLEFORMAT,		1, TIFF_SHORT },

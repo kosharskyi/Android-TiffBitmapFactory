@@ -1,4 +1,4 @@
-/* $Id: sgisv.c,v 1.5.2.1 2010-06-08 18:50:44 bfriesen Exp $ */
+/* $Id: sgisv.c,v 1.7 2015-06-21 01:09:10 bfriesen Exp $ */
 
 /*
  * Copyright (c) 1990-1997 Sam Leffler
@@ -56,8 +56,10 @@ int
 main(int argc, char* argv[])
 {
 	int c;
+#if !HAVE_DECL_OPTARG
 	extern int optind;
 	extern char* optarg;
+#endif
 
 	while ((c = getopt(argc, argv, "c:p:r:")) != -1)
 		switch (c) {

@@ -25,4 +25,3 @@
 
 EXTRA_DIST = README mfs_file.c
 
-AM_CPPFLAGS = -I../../libtiff -I$(top_srcdir)/libtiff
