@@ -274,19 +274,34 @@ main(int argc, char* argv[])
 			deftilewidth = atoi(optarg);
 			break;
 		case 'B':
-			*mp++ = 'b'; *mp = '\0';
+			if (strlen(mode) < (sizeof(mode) - 1))
+			{
+				*mp++ = 'b'; *mp = '\0';
+			}
 			break;
 		case 'L':
-			*mp++ = 'l'; *mp = '\0';
+			if (strlen(mode) < (sizeof(mode) - 1))
+			{
+				*mp++ = 'l'; *mp = '\0';
+			}
 			break;
 		case 'M':
-			*mp++ = 'm'; *mp = '\0';
+			if (strlen(mode) < (sizeof(mode) - 1))
+			{
+				*mp++ = 'm'; *mp = '\0';
+			}
 			break;
 		case 'C':
-			*mp++ = 'c'; *mp = '\0';
+			if (strlen(mode) < (sizeof(mode) - 1))
+			{
+				*mp++ = 'c'; *mp = '\0';
+			}
 			break;
 		case '8':
-			*mp++ = '8'; *mp = '\0';
+			if (strlen(mode) < (sizeof(mode)-1))
+			{
+				*mp++ = '8'; *mp = '\0';
+			}
 			break;
 		case 'x':
 			pageInSeq = 1;
@@ -510,10 +525,16 @@ static const char usage_info[] =
 " -c lerc[:opts]  compress output with LERC encoding\n"
 /* "    LERC options:", */
 "    #            set max_z_error value\n"
-"    s#           set subcodec: 0=none, 1=deflate, 2=zstd (default 0)\n"
 "    p#           set compression level (preset)\n"
-"    For example, -c lerc:0.5:s2:p22 for max_z_error 0.5,\n"
-"    zstd additional copression with maximum compression level.\n"
+  #ifdef ZSTD_SUPPORT
+    "    s#           set subcodec: 0=none, 1=deflate, 2=zstd (default 0)\n"
+    "    For example, -c lerc:0.5:s2:p22 for max_z_error 0.5,\n"
+    "    zstd additional compression with maximum compression level.\n"
+  #else
+    "    s#           set subcodec: 0=none, 1=deflate (default 0)\n"
+    "    For example, -c lerc:0.5:s1:p12 for max_z_error 0.5,\n"
+    "    deflate additional compression with maximum compression level.\n"
+  #endif
 #endif
 #ifdef LZMA_SUPPORT
 " -c lzma[:opts]  compress output with LZMA2 encoding\n"
@@ -579,13 +600,13 @@ usage(int code)
 }
 
 #define	CopyField(tag, v) \
-    if (TIFFGetField(in, tag, &v)) TIFFSetField(out, tag, v)
+    do { if (TIFFGetField(in, tag, &v)) TIFFSetField(out, tag, v); } while(0)
 #define	CopyField2(tag, v1, v2) \
-    if (TIFFGetField(in, tag, &v1, &v2)) TIFFSetField(out, tag, v1, v2)
+    do { if (TIFFGetField(in, tag, &v1, &v2)) TIFFSetField(out, tag, v1, v2); } while(0)
 #define	CopyField3(tag, v1, v2, v3) \
-    if (TIFFGetField(in, tag, &v1, &v2, &v3)) TIFFSetField(out, tag, v1, v2, v3)
+    do { if (TIFFGetField(in, tag, &v1, &v2, &v3)) TIFFSetField(out, tag, v1, v2, v3); } while(0)
 #define	CopyField4(tag, v1, v2, v3, v4) \
-    if (TIFFGetField(in, tag, &v1, &v2, &v3, &v4)) TIFFSetField(out, tag, v1, v2, v3, v4)
+    do { if (TIFFGetField(in, tag, &v1, &v2, &v3, &v4)) TIFFSetField(out, tag, v1, v2, v3, v4); } while(0)
 
 static void
 cpTag(TIFF* in, TIFF* out, uint16_t tag, uint16_t count, TIFFDataType type)
@@ -708,6 +729,8 @@ tiffcp(TIFF* in, TIFF* out)
 		TIFFSetField(out, TIFFTAG_COMPRESSION, compression);
 	else
 		CopyField(TIFFTAG_COMPRESSION, compression);
+	if( !TIFFIsCODECConfigured(compression) )
+		return FALSE;
 	TIFFGetFieldDefaulted(in, TIFFTAG_COMPRESSION, &input_compression);
 	TIFFGetFieldDefaulted(in, TIFFTAG_PHOTOMETRIC, &input_photometric);
 	if (input_compression == COMPRESSION_JPEG) {
@@ -753,25 +776,6 @@ tiffcp(TIFF* in, TIFF* out)
 	 * Will copy `Orientation' tag from input image
 	 */
 	TIFFGetFieldDefaulted(in, TIFFTAG_ORIENTATION, &orientation);
-	switch (orientation) {
-		case ORIENTATION_BOTRIGHT:
-		case ORIENTATION_RIGHTBOT:	/* XXX */
-			TIFFWarning(TIFFFileName(in), "using bottom-left orientation");
-			orientation = ORIENTATION_BOTLEFT;
-		/* fall through... */
-		case ORIENTATION_LEFTBOT:	/* XXX */
-		case ORIENTATION_BOTLEFT:
-			break;
-		case ORIENTATION_TOPRIGHT:
-		case ORIENTATION_RIGHTTOP:	/* XXX */
-		default:
-			TIFFWarning(TIFFFileName(in), "using top-left orientation");
-			orientation = ORIENTATION_TOPLEFT;
-		/* fall through... */
-		case ORIENTATION_LEFTTOP:	/* XXX */
-		case ORIENTATION_TOPLEFT:
-			break;
-	}
 	TIFFSetField(out, TIFFTAG_ORIENTATION, orientation);
 	/*
 	 * Choose tiles/strip for the output image according to
@@ -868,12 +872,17 @@ tiffcp(TIFF* in, TIFF* out)
 		case COMPRESSION_LZW:
 		case COMPRESSION_ADOBE_DEFLATE:
 		case COMPRESSION_DEFLATE:
-                case COMPRESSION_LZMA:
-                case COMPRESSION_ZSTD:
+		case COMPRESSION_LZMA:
+		case COMPRESSION_ZSTD:
 			if (predictor != (uint16_t)-1)
 				TIFFSetField(out, TIFFTAG_PREDICTOR, predictor);
-			else
+			else if( input_compression == COMPRESSION_LZW ||
+				     input_compression == COMPRESSION_ADOBE_DEFLATE ||
+				     input_compression == COMPRESSION_DEFLATE ||
+				     input_compression == COMPRESSION_LZMA ||
+				     input_compression == COMPRESSION_ZSTD ) {
 				CopyField(TIFFTAG_PREDICTOR, predictor);
+            }
                         if( compression == COMPRESSION_ADOBE_DEFLATE ||
                             compression == COMPRESSION_DEFLATE )
                         {
@@ -888,21 +897,12 @@ tiffcp(TIFF* in, TIFF* out)
 			/*fallthrough*/
 		case COMPRESSION_WEBP:
 			if (preset != -1) {
-                                if (compression == COMPRESSION_ADOBE_DEFLATE
-                                         || compression == COMPRESSION_DEFLATE)
-                                        TIFFSetField(out, TIFFTAG_ZIPQUALITY, preset);
-				else if (compression == COMPRESSION_LZMA)
-					TIFFSetField(out, TIFFTAG_LZMAPRESET, preset);
-				else if (compression == COMPRESSION_ZSTD)
-					TIFFSetField(out, TIFFTAG_ZSTD_LEVEL, preset);
-				else if (compression == COMPRESSION_WEBP) {
-					if (preset == 100) {
-						TIFFSetField(out, TIFFTAG_WEBP_LOSSLESS, TRUE);
-					} else {
-						TIFFSetField(out, TIFFTAG_WEBP_LEVEL, preset);						
-					}
+				if (preset == 100) {
+					TIFFSetField(out, TIFFTAG_WEBP_LOSSLESS, TRUE);
+				} else {
+					TIFFSetField(out, TIFFTAG_WEBP_LEVEL, preset);
 				}
-                        }
+			}
 			break;
 		case COMPRESSION_CCITTFAX3:
 		case COMPRESSION_CCITTFAX4:
@@ -910,13 +910,15 @@ tiffcp(TIFF* in, TIFF* out)
 				if (g3opts != (uint32_t) -1)
 					TIFFSetField(out, TIFFTAG_GROUP3OPTIONS,
 					    g3opts);
-				else
+				else if( input_compression == COMPRESSION_CCITTFAX3 )
 					CopyField(TIFFTAG_GROUP3OPTIONS, g3opts);
-			} else
+			} else if(  input_compression == COMPRESSION_CCITTFAX4 )
 				CopyTag(TIFFTAG_GROUP4OPTIONS, 1, TIFF_LONG);
-			CopyTag(TIFFTAG_BADFAXLINES, 1, TIFF_LONG);
-			CopyTag(TIFFTAG_CLEANFAXDATA, 1, TIFF_LONG);
-			CopyTag(TIFFTAG_CONSECUTIVEBADFAXLINES, 1, TIFF_LONG);
+			if( input_compression == COMPRESSION_CCITTFAX3 || input_compression == COMPRESSION_CCITTFAX4 ) {
+				CopyTag(TIFFTAG_BADFAXLINES, 1, TIFF_LONG);
+				CopyTag(TIFFTAG_CLEANFAXDATA, 1, TIFF_LONG);
+				CopyTag(TIFFTAG_CONSECUTIVEBADFAXLINES, 1, TIFF_LONG);
+			}
 			CopyTag(TIFFTAG_FAXRECVPARAMS, 1, TIFF_LONG);
 			CopyTag(TIFFTAG_FAXRECVTIME, 1, TIFF_LONG);
 			CopyTag(TIFFTAG_FAXSUBADDRESS, 1, TIFF_ASCII);
@@ -1661,12 +1663,27 @@ DECLAREwriteFunc(writeBufferToSeparateStrips)
 	tdata_t obuf;
 	tstrip_t strip = 0;
 	tsample_t s;
+	uint16_t bps = 0, bytes_per_sample;
 
 	obuf = limitMalloc(stripsize);
 	if (obuf == NULL)
 		return (0);
 	_TIFFmemset(obuf, 0, stripsize);
 	(void) TIFFGetFieldDefaulted(out, TIFFTAG_ROWSPERSTRIP, &rowsperstrip);
+	(void) TIFFGetField(out, TIFFTAG_BITSPERSAMPLE, &bps);
+	if( bps == 0 )
+        {
+            TIFFError(TIFFFileName(out), "Error, cannot read BitsPerSample");
+            _TIFFfree(obuf);
+            return 0;
+        }
+        if( (bps % 8) != 0 )
+        {
+            TIFFError(TIFFFileName(out), "Error, cannot handle BitsPerSample that is not a multiple of 8");
+            _TIFFfree(obuf);
+            return 0;
+        }
+	bytes_per_sample = bps/8;
 	for (s = 0; s < spp; s++) {
 		uint32_t row;
 		for (row = 0; row < imagelength; row += rowsperstrip) {
@@ -1676,7 +1693,7 @@ DECLAREwriteFunc(writeBufferToSeparateStrips)
 
 			cpContigBufToSeparateBuf(
 			    obuf, (uint8_t*) buf + row * rowsize + s,
-			    nrows, imagewidth, 0, 0, spp, 1);
+			    nrows, imagewidth, 0, 0, spp, bytes_per_sample);
 			if (TIFFWriteEncodedStrip(out, strip++, obuf, stripsize) < 0) {
 				TIFFError(TIFFFileName(out),
 				    "Error, can't write strip %"PRIu32,

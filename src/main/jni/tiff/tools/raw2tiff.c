@@ -209,6 +209,11 @@ main(int argc, char* argv[])
 		return (EXIT_FAILURE);
 	}
 
+	if (nbands == 0) {
+		fprintf(stderr, "The number of bands is illegal.\n");
+		return (-1);
+	}
+
 	if (guessSize(fd, dtype, hdr_size, nbands, swab, &width, &length) < 0)
 		return EXIT_FAILURE;
 
@@ -259,6 +264,7 @@ main(int argc, char* argv[])
 		TIFFSetField(out, TIFFTAG_JPEGCOLORMODE, jpegcolormode);
 		break;
 	case COMPRESSION_LZW:
+	case COMPRESSION_ADOBE_DEFLATE:
 	case COMPRESSION_DEFLATE:
 		if (predictor != 0)
 			TIFFSetField(out, TIFFTAG_PREDICTOR, predictor);
@@ -608,7 +614,7 @@ processCompressOptions(char* opt)
 		char* cp = strchr(opt, ':');
 		if (cp)
 			predictor = atoi(cp+1);
-		compression = COMPRESSION_DEFLATE;
+		compression = COMPRESSION_ADOBE_DEFLATE;
 	} else
 		return (0);
 	return (1);

@@ -1314,6 +1314,8 @@ void t2p_read_tiff_data(T2P* t2p, TIFF* input){
 	uint16_t xuint16;
 	uint16_t* xuint16p;
 	float* xfloatp;
+	int palette_16bit = 0;
+	int palette_shift = 8;
 
 	t2p->pdf_transcode = T2P_TRANSCODE_ENCODE;
 	t2p->pdf_sample = T2P_SAMPLE_NOTHING;
@@ -1565,10 +1567,22 @@ void t2p_read_tiff_data(T2P* t2p, TIFF* input){
 				t2p->t2p_error = T2P_ERR_ERROR;
 				return;
 			}
+			/* Some older tiffs may have colors in the palette
+			 * ranging from 0 to 255 rather than 0 to 65535. */
 			for(i=0;i<t2p->pdf_palettesize;i++){
-				t2p->pdf_palette[(i*3)]  = (unsigned char) (r[i]>>8);
-				t2p->pdf_palette[(i*3)+1]= (unsigned char) (g[i]>>8);
-				t2p->pdf_palette[(i*3)+2]= (unsigned char) (b[i]>>8);
+				if ((r[i]>255)||(g[i]>255)||(b[i]>255)){
+					palette_16bit = 1;
+					break;
+				}
+			}
+			if (palette_16bit == 0){
+				TIFFWarning(TIFFFileName(input), "Assuming 8-bit colormap");
+				palette_shift = 0;
+			}
+			for(i=0;i<t2p->pdf_palettesize;i++){
+				t2p->pdf_palette[(i*3)]  = (unsigned char) (r[i]>>palette_shift);
+				t2p->pdf_palette[(i*3)+1]= (unsigned char) (g[i]>>palette_shift);
+				t2p->pdf_palette[(i*3)+2]= (unsigned char) (b[i]>>palette_shift);
 			}
 			t2p->pdf_palettesize *= 3;
 			break;
@@ -1822,8 +1836,11 @@ void t2p_read_tiff_data(T2P* t2p, TIFF* input){
 				uint16_t predictor;
 				t2p->pdf_transcode = T2P_TRANSCODE_RAW;
 				t2p->pdf_compression=T2P_COMPRESS_ZIP;
-				TIFFGetField(input, TIFFTAG_PREDICTOR, &predictor);
-				t2p->pdf_compressionquality = predictor;
+				if (TIFFGetField(input, TIFFTAG_PREDICTOR, &predictor)) {
+					t2p->pdf_compressionquality = predictor;
+				} else {
+					t2p->pdf_compressionquality = PREDICTOR_NONE;
+				}
 				/* TIFFTAG_ZIPQUALITY is always Z_DEFAULT_COMPRESSION on reading */
 			}
 		}
@@ -1991,7 +2008,13 @@ void t2p_read_tiff_size(T2P* t2p, TIFF* input){
 		if(t2p->pdf_compression == T2P_COMPRESS_ZIP)
 #endif
 		{
-			TIFFGetField(input, TIFFTAG_STRIPBYTECOUNTS, &sbc);
+			if(!TIFFGetField(input, TIFFTAG_STRIPBYTECOUNTS, &sbc)){
+				TIFFError(TIFF2PDF_MODULE, 
+					"Input file %s missing field: TIFFTAG_STRIPBYTECOUNTS",
+					TIFFFileName(input));
+				t2p->t2p_error = T2P_ERR_ERROR;
+				return;
+			}
 			t2p_set_tiff_datasize(t2p, sbc[0]);
 			return;
 		}
@@ -2583,7 +2606,7 @@ tsize_t t2p_readwrite_pdf_image(T2P* t2p, TIFF* input, TIFF* output){
 					t2p->tiff_datasize,
 					TIFFFileName(input));
 				t2p->t2p_error = T2P_ERR_ERROR;
-                                _TIFFfree(buffer);
+				_TIFFfree(buffer);
 				return(0);
 			}
 			for(i=0;i<stripcount;i++){
@@ -2599,8 +2622,9 @@ tsize_t t2p_readwrite_pdf_image(T2P* t2p, TIFF* input, TIFF* output){
 							"Error on decoding strip %"PRIu32" of %s",
 							i + j*stripcount,
 							TIFFFileName(input));
-							_TIFFfree(buffer);
 						t2p->t2p_error=T2P_ERR_ERROR;
+						_TIFFfree(samplebuffer);
+						_TIFFfree(buffer);
 						return(0);
 					}
 					samplebufferoffset+=read;
@@ -2789,7 +2813,7 @@ dataready:
 #endif /* ifdef JPEG_SUPPORT */
 #ifdef ZIP_SUPPORT
 	case T2P_COMPRESS_ZIP:
-		TIFFSetField(output, TIFFTAG_COMPRESSION, COMPRESSION_DEFLATE);
+		TIFFSetField(output, TIFFTAG_COMPRESSION, COMPRESSION_ADOBE_DEFLATE);
 		if(t2p->pdf_defaultcompressionquality%100 != 0){
 			TIFFSetField(output, 
 				TIFFTAG_PREDICTOR, 
@@ -3286,7 +3310,7 @@ tsize_t t2p_readwrite_pdf_image_tile(T2P* t2p, TIFF* input, TIFF* output, ttile_
 #endif
 #ifdef ZIP_SUPPORT
 	case T2P_COMPRESS_ZIP:
-		TIFFSetField(output, TIFFTAG_COMPRESSION, COMPRESSION_DEFLATE);
+		TIFFSetField(output, TIFFTAG_COMPRESSION, COMPRESSION_ADOBE_DEFLATE);
 		if(t2p->pdf_defaultcompressionquality%100 != 0){
 			TIFFSetField(output, 
 				TIFFTAG_PREDICTOR, 

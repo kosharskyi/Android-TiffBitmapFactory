@@ -63,20 +63,24 @@
  *                units when sectioning image into columns x rows
  *                using the -S cols:rows option.
  * -X #           Horizontal dimension of region to extract expressed in current
- *                units
+ *                units, relative to the specified origin reference 'edge' left (default for X) or right.
  * -Y #           Vertical dimension of region to extract expressed in current
- *                units
+ *                units, relative to the specified origin reference 'edge' top (default for Y) or bottom.
  * -O orient      Orientation for output image, portrait, landscape, auto
  * -P page        Page size for output image segments, eg letter, legal, tabloid,
  *                etc.
  * -S cols:rows   Divide the image into equal sized segments using cols across
  *                and rows down
- * -E t|l|r|b     Edge to use as origin
+ * -E t|l|r|b     Edge to use as origin (i.e. 'side' of the image not 'corner')
+ *                  top    = width from left, zones from top to bottom (default)
+ *                  bottom = width from left, zones from bottom to top
+ *                  left   = zones from left to right, length from top
+ *                  right  = zones from right to left, length from top
  * -m #,#,#,#     Margins from edges for selection: top, left, bottom, right
  *                (commas separated)
  * -Z #:#,#:#     Zones of the image designated as zone X of Y, 
  *                eg 1:3 would be first of three equal portions measured
- *                from reference edge
+ *                from reference edge (i.e. 'side' not corner)
  * -N odd|even|#,#-#,#|last 
  *                Select sequences and/or ranges of images within file
  *                to process. The words odd or even may be used to specify
@@ -103,10 +107,13 @@
  *                selects which functions dump data, with higher numbers selecting
  *                lower level, scanline level routines. Debug reports a limited set
  *                of messages to monitor progress without enabling dump logs.
+ * 
+ * Note:    The (-X|-Y), -Z and -z options are mutually exclusive.
+ *          In no case should the options be applied to a given selection successively.
  */
 
-static   char tiffcrop_version_id[] = "2.4";
-static   char tiffcrop_rev_date[] = "12-13-2010";
+static   char tiffcrop_version_id[] = "2.5";
+static   char tiffcrop_rev_date[] = "02-09-2022";
 
 #include "tif_config.h"
 #include "libport.h"
@@ -774,6 +781,9 @@ static const char usage_info[] =
 "             The four debug/dump options are independent, though it makes little sense to\n"
 "             specify a dump file without specifying a detail level.\n"
 "\n"
+"Note:        The (-X|-Y), -Z and -z options are mutually exclusive.\n"
+"             In no case should the options be applied to a given selection successively.\n"
+"\n"
 ;
 
 /* This function could be modified to pass starting sample offset 
@@ -1177,7 +1187,6 @@ writeBufferToSeparateStrips (TIFF* out, uint8_t* buf,
   tstrip_t strip = 0;
   tsize_t  stripsize = TIFFStripSize(out);
   tsize_t  rowstripsize,  scanlinesize = TIFFScanlineSize(out);
-  tsize_t  total_bytes = 0;
   tdata_t  obuf;
 
   (void) TIFFGetFieldDefaulted(out, TIFFTAG_ROWSPERSTRIP, &rowsperstrip);
@@ -1215,7 +1224,6 @@ writeBufferToSeparateStrips (TIFF* out, uint8_t* buf,
 
       stripsize = TIFFVStripSize(out, nrows);
       src = buf + (row * rowsize);
-      total_bytes += stripsize;
       memset (obuf, '\0', rowstripsize);
       if (extractContigSamplesToBuffer(obuf, src, nrows, width, s, spp, bps, dump))
         {
@@ -2123,6 +2131,15 @@ void  process_command_opts (int argc, char *argv[], char *mp, char *mode, uint32
 		/*NOTREACHED*/
       }
     }
+    /*-- Check for not allowed combinations (e.g. -X, -Y and -Z and -z are mutually exclusive) --*/
+    char XY, Z, R;
+    XY = ((crop_data->crop_mode & CROP_WIDTH) || (crop_data->crop_mode & CROP_LENGTH));
+    Z = (crop_data->crop_mode & CROP_ZONES);
+    R = (crop_data->crop_mode & CROP_REGIONS);
+    if ((XY && Z) || (XY && R) || (Z && R)) {
+        TIFFError("tiffcrop input error", "The crop options(-X|-Y), -Z and -z are mutually exclusive.->Exit");
+        exit(EXIT_FAILURE);
+    }
   }  /* end process_command_opts */
 
 /* Start a new output file if one has not been previously opened or
@@ -2710,7 +2727,7 @@ static void dump_info(FILE *dumpfile, int format, char *prefix, char *msg, ...)
 static int dump_buffer (FILE* dumpfile, int format, uint32_t rows, uint32_t width,
                         uint32_t row, unsigned char *buff)
   {
-  int j, k;
+  int k;
   uint32_t i;
   unsigned char * dump_ptr;
 
@@ -2728,7 +2745,7 @@ static int dump_buffer (FILE* dumpfile, int format, uint32_t rows, uint32_t widt
                  "Row %4"PRIu32", %"PRIu32" bytes at offset %"PRIu32,
 	         row + i + 1u, width, row * width);
      
-    for (j = 0, k = width; k >= 10; j += 10, k -= 10, dump_ptr += 10)
+    for (k = width; k >= 10; k -= 10, dump_ptr += 10)
       dump_data (dumpfile, format, "", dump_ptr, 10);
     if (k > 0)
       dump_data (dumpfile, format, "", dump_ptr, k);
@@ -2748,7 +2765,7 @@ extractContigSamplesBytes (uint8_t *in, uint8_t *out, uint32_t cols,
                            tsample_t count, uint32_t start, uint32_t end)
   {
   int i, bytes_per_sample, sindex;
-  uint32_t col, dst_rowsize, bit_offset;
+  uint32_t col, dst_rowsize, bit_offset, numcols;
   uint32_t src_byte /*, src_bit */;
   uint8_t *src = in;
   uint8_t *dst = out;
@@ -2759,6 +2776,10 @@ extractContigSamplesBytes (uint8_t *in, uint8_t *out, uint32_t cols,
     return (1);
     }
 
+  /* Number of extracted columns shall be kept as (end-start + 1). Otherwise buffer-overflow might occur.
+   * 'start' and 'col' count from 0 to (cols-1)  but 'end' is to be set one after the index of the last column to be copied!
+   */
+  if (end >= start) numcols = end - start; else numcols = start - end;
   if ((start > end) || (start > cols))
     {
     TIFFError ("extractContigSamplesBytes", 
@@ -2771,6 +2792,9 @@ extractContigSamplesBytes (uint8_t *in, uint8_t *out, uint32_t cols,
                "Invalid end column value %"PRIu32" ignored", end);
     end = cols;
     }
+  if ((end - start) > numcols) {
+      end = start + numcols;
+  }
 
   dst_rowsize = (bps * (end - start) * count) / 8;
 
@@ -2814,7 +2838,7 @@ extractContigSamples8bits (uint8_t *in, uint8_t *out, uint32_t cols,
                            tsample_t count, uint32_t start, uint32_t end)
   {
   int    ready_bits = 0, sindex = 0;
-  uint32_t col, src_byte, src_bit, bit_offset;
+  uint32_t col, src_byte, src_bit, bit_offset, numcols;
   uint8_t  maskbits = 0, matchbits = 0;
   uint8_t  buff1 = 0, buff2 = 0;
   uint8_t *src = in;
@@ -2826,6 +2850,10 @@ extractContigSamples8bits (uint8_t *in, uint8_t *out, uint32_t cols,
     return (1);
     }
 
+  /* Number of extracted columns shall be kept as (end-start + 1). Otherwise buffer-overflow might occur.
+   * 'start' and 'col' count from 0 to (cols-1)  but 'end' is to be set one after the index of the last column to be copied!
+   */
+  if (end >= start) numcols = end - start; else numcols = start - end;
   if ((start > end) || (start > cols))
     {
     TIFFError ("extractContigSamples8bits", 
@@ -2838,7 +2866,10 @@ extractContigSamples8bits (uint8_t *in, uint8_t *out, uint32_t cols,
                "Invalid end column value %"PRIu32" ignored", end);
     end = cols;
     }
-  
+  if ((end - start) > numcols) {
+      end = start + numcols;
+  }
+
   ready_bits = 0;
   maskbits =  (uint8_t)-1 >> (8 - bps);
   buff1 = buff2 = 0;
@@ -2891,7 +2922,7 @@ extractContigSamples16bits (uint8_t *in, uint8_t *out, uint32_t cols,
                             tsample_t count, uint32_t start, uint32_t end)
   {
   int    ready_bits = 0, sindex = 0;
-  uint32_t col, src_byte, src_bit, bit_offset;
+  uint32_t col, src_byte, src_bit, bit_offset, numcols;
   uint16_t maskbits = 0, matchbits = 0;
   uint16_t buff1 = 0, buff2 = 0;
   uint8_t  bytebuff = 0;
@@ -2904,6 +2935,10 @@ extractContigSamples16bits (uint8_t *in, uint8_t *out, uint32_t cols,
     return (1);
     }
 
+  /* Number of extracted columns shall be kept as (end-start + 1). Otherwise buffer-overflow might occur.
+   * 'start' and 'col' count from 0 to (cols-1)  but 'end' is to be set one after the index of the last column to be copied!
+   */
+  if (end >= start) numcols = end - start; else numcols = start - end;
   if ((start > end) || (start > cols))
     {
     TIFFError ("extractContigSamples16bits", 
@@ -2916,6 +2951,9 @@ extractContigSamples16bits (uint8_t *in, uint8_t *out, uint32_t cols,
                "Invalid end column value %"PRIu32" ignored", end);
     end = cols;
     }
+  if ((end - start) > numcols) {
+      end = start + numcols;
+  }
 
   ready_bits = 0;
   maskbits = (uint16_t)-1 >> (16 - bps);
@@ -2980,7 +3018,7 @@ extractContigSamples24bits (uint8_t *in, uint8_t *out, uint32_t cols,
                             tsample_t count, uint32_t start, uint32_t end)
   {
   int    ready_bits = 0, sindex = 0;
-  uint32_t col, src_byte, src_bit, bit_offset;
+  uint32_t col, src_byte, src_bit, bit_offset, numcols;
   uint32_t maskbits = 0, matchbits = 0;
   uint32_t buff1 = 0, buff2 = 0;
   uint8_t  bytebuff1 = 0, bytebuff2 = 0;
@@ -2993,6 +3031,10 @@ extractContigSamples24bits (uint8_t *in, uint8_t *out, uint32_t cols,
     return (1);
     }
 
+  /* Number of extracted columns shall be kept as (end-start + 1). Otherwise buffer-overflow might occur.
+   * 'start' and 'col' count from 0 to (cols-1)  but 'end' is to be set one after the index of the last column to be copied!
+   */
+  if (end >= start) numcols = end - start; else numcols = start - end;
   if ((start > end) || (start > cols))
     {
     TIFFError ("extractContigSamples24bits", 
@@ -3005,6 +3047,9 @@ extractContigSamples24bits (uint8_t *in, uint8_t *out, uint32_t cols,
                "Invalid end column value %"PRIu32" ignored", end);
     end = cols;
     }
+  if ((end - start) > numcols) {
+      end = start + numcols;
+  }
 
   ready_bits = 0;
   maskbits =  (uint32_t)-1 >> (32 - bps);
@@ -3089,7 +3134,7 @@ extractContigSamples32bits (uint8_t *in, uint8_t *out, uint32_t cols,
                             tsample_t count, uint32_t start, uint32_t end)
   {
   int    ready_bits = 0, sindex = 0 /*, shift_width = 0 */;
-  uint32_t col, src_byte, src_bit, bit_offset;
+  uint32_t col, src_byte, src_bit, bit_offset, numcols;
   uint32_t longbuff1 = 0, longbuff2 = 0;
   uint64_t maskbits = 0, matchbits = 0;
   uint64_t buff1 = 0, buff2 = 0, buff3 = 0;
@@ -3104,6 +3149,10 @@ extractContigSamples32bits (uint8_t *in, uint8_t *out, uint32_t cols,
     }
 
 
+  /* Number of extracted columns shall be kept as (end-start + 1). Otherwise buffer-overflow might occur.
+   * 'start' and 'col' count from 0 to (cols-1)  but 'end' is to be set one after the index of the last column to be copied!
+   */
+  if (end >= start) numcols = end - start; else numcols = start - end;
   if ((start > end) || (start > cols))
     {
     TIFFError ("extractContigSamples32bits", 
@@ -3116,6 +3165,9 @@ extractContigSamples32bits (uint8_t *in, uint8_t *out, uint32_t cols,
                "Invalid end column value %"PRIu32" ignored", end);
     end = cols;
     }
+  if ((end - start) > numcols) {
+      end = start + numcols;
+  }
 
   /* shift_width = ((bps + 7) / 8) + 1; */ 
   ready_bits = 0;
@@ -3195,7 +3247,7 @@ extractContigSamplesShifted8bits (uint8_t *in, uint8_t *out, uint32_t cols,
                                   int shift)
   {
   int    ready_bits = 0, sindex = 0;
-  uint32_t col, src_byte, src_bit, bit_offset;
+  uint32_t col, src_byte, src_bit, bit_offset, numcols;
   uint8_t  maskbits = 0, matchbits = 0;
   uint8_t  buff1 = 0, buff2 = 0;
   uint8_t *src = in;
@@ -3207,6 +3259,10 @@ extractContigSamplesShifted8bits (uint8_t *in, uint8_t *out, uint32_t cols,
     return (1);
     }
 
+  /* Number of extracted columns shall be kept as (end-start + 1). Otherwise buffer-overflow might occur.
+   * 'start' and 'col' count from 0 to (cols-1)  but 'end' is to be set one after the index of the last column to be copied!
+   */
+  if (end >= start) numcols = end - start; else numcols = start - end;
   if ((start > end) || (start > cols))
     {
     TIFFError ("extractContigSamplesShifted8bits", 
@@ -3219,6 +3275,9 @@ extractContigSamplesShifted8bits (uint8_t *in, uint8_t *out, uint32_t cols,
                "Invalid end column value %"PRIu32" ignored", end);
     end = cols;
     }
+  if ((end - start) > numcols) {
+      end = start + numcols;
+  }
 
   ready_bits = shift;
   maskbits =  (uint8_t)-1 >> (8 - bps);
@@ -3275,7 +3334,7 @@ extractContigSamplesShifted16bits (uint8_t *in, uint8_t *out, uint32_t cols,
                                    int shift)
   {
   int    ready_bits = 0, sindex = 0;
-  uint32_t col, src_byte, src_bit, bit_offset;
+  uint32_t col, src_byte, src_bit, bit_offset, numcols;
   uint16_t maskbits = 0, matchbits = 0;
   uint16_t buff1 = 0, buff2 = 0;
   uint8_t  bytebuff = 0;
@@ -3288,6 +3347,10 @@ extractContigSamplesShifted16bits (uint8_t *in, uint8_t *out, uint32_t cols,
     return (1);
     }
 
+  /* Number of extracted columns shall be kept as (end-start + 1). Otherwise buffer-overflow might occur.
+   * 'start' and 'col' count from 0 to (cols-1)  but 'end' is to be set one after the index of the last column to be copied!
+   */
+  if (end >= start) numcols = end - start; else numcols = start - end;
   if ((start > end) || (start > cols))
     {
     TIFFError ("extractContigSamplesShifted16bits", 
@@ -3300,6 +3363,9 @@ extractContigSamplesShifted16bits (uint8_t *in, uint8_t *out, uint32_t cols,
                "Invalid end column value %"PRIu32" ignored", end);
     end = cols;
     }
+  if ((end - start) > numcols) {
+      end = start + numcols;
+  }
 
   ready_bits = shift;
   maskbits = (uint16_t)-1 >> (16 - bps);
@@ -3365,7 +3431,7 @@ extractContigSamplesShifted24bits (uint8_t *in, uint8_t *out, uint32_t cols,
                                    int shift)
   {
   int    ready_bits = 0, sindex = 0;
-  uint32_t col, src_byte, src_bit, bit_offset;
+  uint32_t col, src_byte, src_bit, bit_offset, numcols;
   uint32_t maskbits = 0, matchbits = 0;
   uint32_t buff1 = 0, buff2 = 0;
   uint8_t  bytebuff1 = 0, bytebuff2 = 0;
@@ -3378,6 +3444,16 @@ extractContigSamplesShifted24bits (uint8_t *in, uint8_t *out, uint32_t cols,
     return (1);
     }
 
+  /* Number of extracted columns shall be kept as (end-start + 1). Otherwise buffer-overflow might occur.
+   * 'start' and 'col' count from 0 to (cols-1)  but 'end' is to be set one after the index of the last column to be copied!
+   */
+  /*--- Remark, which is true for all those functions extractCongigSamplesXXX() --
+  *  The mitigation of the start/end test does not allways make sense, because the function is often called with e.g.:
+  *  start = 31; end = 32; cols = 32  to extract the last column in a 32x32 sample image. 
+  *  If then, a worng parameter (e.g. cols = 10) is provided, the mitigated settings would be start=0; end=1. 
+  *  Therefore, an error message and no copy action might be the better reaction to wrong parameter configurations.
+   */
+  if (end >= start) numcols = end - start; else numcols = start - end;
   if ((start > end) || (start > cols))
     {
     TIFFError ("extractContigSamplesShifted24bits", 
@@ -3390,6 +3466,9 @@ extractContigSamplesShifted24bits (uint8_t *in, uint8_t *out, uint32_t cols,
                "Invalid end column value %"PRIu32" ignored", end);
     end = cols;
     }
+  if ((end - start) > numcols) {
+      end = start + numcols;
+  }
 
   ready_bits = shift;
   maskbits =  (uint32_t)-1 >> (32 - bps);
@@ -3451,7 +3530,7 @@ extractContigSamplesShifted24bits (uint8_t *in, uint8_t *out, uint32_t cols,
     buff2 = (buff2 << 8);
     bytebuff2 = bytebuff1;
     ready_bits -= 8;
-    }
+  }
    
   return (0);
   } /* end extractContigSamplesShifted24bits */
@@ -3463,7 +3542,7 @@ extractContigSamplesShifted32bits (uint8_t *in, uint8_t *out, uint32_t cols,
                                    int shift)
   {
   int    ready_bits = 0, sindex = 0 /*, shift_width = 0 */;
-  uint32_t col, src_byte, src_bit, bit_offset;
+  uint32_t col, src_byte, src_bit, bit_offset, numcols;
   uint32_t longbuff1 = 0, longbuff2 = 0;
   uint64_t maskbits = 0, matchbits = 0;
   uint64_t buff1 = 0, buff2 = 0, buff3 = 0;
@@ -3478,6 +3557,10 @@ extractContigSamplesShifted32bits (uint8_t *in, uint8_t *out, uint32_t cols,
     }
 
 
+  /* Number of extracted columns shall be kept as (end-start + 1). Otherwise buffer-overflow might occur.
+   * 'start' and 'col' count from 0 to (cols-1)  but 'end' is to be set one after the index of the last column to be copied!
+   */
+  if (end >= start) numcols = end - start; else numcols = start - end;
   if ((start > end) || (start > cols))
     {
     TIFFError ("extractContigSamplesShifted32bits", 
@@ -3490,6 +3573,9 @@ extractContigSamplesShifted32bits (uint8_t *in, uint8_t *out, uint32_t cols,
                "Invalid end column value %"PRIu32" ignored", end);
     end = cols;
     }
+  if ((end - start) > numcols) {
+      end = start + numcols;
+  }
 
   /* shift_width = ((bps + 7) / 8) + 1; */ 
   ready_bits = shift;
@@ -5194,29 +5280,45 @@ computeInputPixelOffsets(struct crop_mask *crop, struct image_data *image,
 	y1 = (uint32_t) (crop->corners[i].Y1);
 	y2 = (uint32_t) (crop->corners[i].Y2);
 	}
-      if (x1 < 1)
-        crop->regionlist[i].x1 = 0;
-      else
-        crop->regionlist[i].x1 = (uint32_t) (x1 - 1);
+      /* a) Region needs to be within image sizes 0.. width-1; 0..length-1 
+       * b) Corners are expected to be submitted as top-left to bottom-right.
+       *    Therefore, check that and reorder input.
+       * (be aware x,y are already casted to (uint32_t) and avoid (0 - 1) )
+       */
+      uint32_t aux;
+      if (x1 > x2) {
+        aux = x1;
+        x1 = x2;
+        x2 = aux;
+      }
+      if (y1 > y2) {
+        aux = y1;
+        y1 = y2;
+        y2 = aux;
+      }
+      if (x1 > image->width - 1)
+        crop->regionlist[i].x1 = image->width - 1;
+      else if (x1 > 0)
+        crop->regionlist[i].x1 = (uint32_t)(x1 - 1);
 
       if (x2 > image->width - 1)
         crop->regionlist[i].x2 = image->width - 1;
-      else
-        crop->regionlist[i].x2 = (uint32_t) (x2 - 1);
-      zwidth  = crop->regionlist[i].x2 - crop->regionlist[i].x1 + 1; 
+      else if (x2 > 0)
+        crop->regionlist[i].x2 = (uint32_t)(x2 - 1);
 
-      if (y1 < 1)
-        crop->regionlist[i].y1 = 0;
-      else
-        crop->regionlist[i].y1 = (uint32_t) (y1 - 1);
+      zwidth = crop->regionlist[i].x2 - crop->regionlist[i].x1 + 1;
+
+      if (y1 > image->length - 1)
+        crop->regionlist[i].y1 = image->length - 1;
+      else if (y1 > 0)
+        crop->regionlist[i].y1 = (uint32_t)(y1 - 1);
 
       if (y2 > image->length - 1)
         crop->regionlist[i].y2 = image->length - 1;
-      else
-        crop->regionlist[i].y2 = (uint32_t) (y2 - 1);
+      else if (y2 > 0)
+        crop->regionlist[i].y2 = (uint32_t)(y2 - 1);
 
-      zlength = crop->regionlist[i].y2 - crop->regionlist[i].y1 + 1; 
-
+      zlength = crop->regionlist[i].y2 - crop->regionlist[i].y1 + 1;
       if (zwidth > max_width)
         max_width = zwidth;
       if (zlength > max_length)
@@ -5246,7 +5348,7 @@ computeInputPixelOffsets(struct crop_mask *crop, struct image_data *image,
 	}
       }
     return (0);
-    }
+    }  /* crop_mode == CROP_REGIONS */
   
   /* Convert crop margins into offsets into image
    * Margins are expressed as pixel rows and columns, not bytes
@@ -5282,7 +5384,7 @@ computeInputPixelOffsets(struct crop_mask *crop, struct image_data *image,
       bmargin = (uint32_t) 0;
       return (-1);
       }
-    }
+    }  /* crop_mode == CROP_MARGINS */
   else
     { /* no margins requested */
     tmargin = (uint32_t) 0;
@@ -5373,24 +5475,23 @@ computeInputPixelOffsets(struct crop_mask *crop, struct image_data *image,
   off->endx   = endx;
   off->endy   = endy;
 
-  crop_width  = endx - startx + 1;
-  crop_length = endy - starty + 1;
-
-  if (crop_width <= 0)
+  if (endx + 1 <= startx)
     {
     TIFFError("computeInputPixelOffsets", 
                "Invalid left/right margins and /or image crop width requested");
     return (-1);
     }
+  crop_width  = endx - startx + 1;
   if (crop_width > image->width)
     crop_width = image->width;
 
-  if (crop_length <= 0)
+  if (endy + 1 <= starty)
     {
     TIFFError("computeInputPixelOffsets", 
               "Invalid top/bottom margins and /or image crop length requested");
     return (-1);
     }
+  crop_length = endy - starty + 1;
   if (crop_length > image->length)
     crop_length = image->length;
 
@@ -5416,7 +5517,7 @@ getCropOffsets(struct image_data *image, struct crop_mask *crop, struct dump_opt
   {
   struct offset offsets;
   int    i;
-  int32_t  test;
+  uint32_t uaux;
   uint32_t seg, total, need_buff = 0;
   uint32_t buffsize;
   uint32_t zwidth, zlength;
@@ -5490,10 +5591,22 @@ getCropOffsets(struct image_data *image, struct crop_mask *crop, struct dump_opt
   else
     crop->selections = crop->zones;
 
-  for (i = 0; i < crop->zones; i++)
+  /* Initialize regions iterator i */
+  i = 0;
+  for (int j = 0; j < crop->zones; j++)
     {
-    seg = crop->zonelist[i].position;
-    total = crop->zonelist[i].total;
+    seg = crop->zonelist[j].position;
+    total = crop->zonelist[j].total;
+
+    /* check for not allowed zone cases like 0:0; 4:3; or negative ones etc. and skip that input */
+    if (crop->zonelist[j].position < 0 || crop->zonelist[j].total < 0) {
+        TIFFError("getCropOffsets", "Negative crop zone values %d:%d are not allowed, thus skipped.", crop->zonelist[j].position, crop->zonelist[j].total);
+        continue;
+    }
+    if (seg == 0 || total == 0 || seg > total) {
+        TIFFError("getCropOffsets", "Crop zone %d:%d is out of specification, thus skipped.", seg, total);
+        continue;
+    }
 
     switch (crop->edge_ref) 
       {
@@ -5504,17 +5617,23 @@ getCropOffsets(struct image_data *image, struct crop_mask *crop, struct dump_opt
 
            crop->regionlist[i].x1 = offsets.startx + 
                                   (uint32_t)(offsets.crop_width * 1.0 * (seg - 1) / total);
-           test = (int32_t)offsets.startx +
-                  (int32_t)(offsets.crop_width * 1.0 * seg / total);
-           if (test < 1 )
-             crop->regionlist[i].x2 = 0;
-           else
-	     {
-	     if (test > (int32_t)(image->width - 1))
+           /* FAULT: IMHO in the old code here, the calculation of x2 was based on wrong assumtions. The whole image was assumed and 'endy' and 'starty' are not respected anymore!*/
+           /* NEW PROPOSED Code: Assumption: offsets are within image with top left corner as origin (0,0) and 'start' <= 'end'. */
+           if (crop->regionlist[i].x1 > offsets.endx) {
+                crop->regionlist[i].x1 = offsets.endx;
+           } else if (crop->regionlist[i].x1 >= image->width) {
+               crop->regionlist[i].x1 = image->width - 1;
+           }
+
+           crop->regionlist[i].x2 = offsets.startx + (uint32_t)(offsets.crop_width * 1.0 * seg / total);
+           if (crop->regionlist[i].x2 > 0) crop->regionlist[i].x2 = crop->regionlist[i].x2 - 1;
+           if (crop->regionlist[i].x2 < crop->regionlist[i].x1) {
+               crop->regionlist[i].x2 = crop->regionlist[i].x1;
+           } else if (crop->regionlist[i].x2 > offsets.endx) {
+               crop->regionlist[i].x2 = offsets.endx;
+           } else if (crop->regionlist[i].x2 >= image->width) {
                crop->regionlist[i].x2 = image->width - 1;
-             else
-	       crop->regionlist[i].x2 = test - 1;
-             }
+           }
            zwidth = crop->regionlist[i].x2 - crop->regionlist[i].x1  + 1;
 
 	   /* This is passed to extractCropZone or extractCompositeZones */
@@ -5529,22 +5648,27 @@ getCropOffsets(struct image_data *image, struct crop_mask *crop, struct dump_opt
 	   crop->regionlist[i].x1 = offsets.startx;
            crop->regionlist[i].x2 = offsets.endx;
 
-           test = offsets.endy - (uint32_t)(offsets.crop_length * 1.0 * seg / total);
-           if (test < 1 )
-	     crop->regionlist[i].y1 = 0;
-           else
-	     crop->regionlist[i].y1 = test + 1;
+           /* FAULT: IMHO in the old code here, the calculation of y1/y2 was based on wrong assumtions. The whole image was assumed and 'endy' and 'starty' are not respected anymore!*/
+           /* NEW PROPOSED Code: Assumption: offsets are within image with top left corner as origin (0,0) and 'start' <= 'end'. */
+           uaux = (uint32_t)(offsets.crop_length * 1.0 * seg / total);
+           if (uaux <= offsets.endy + 1) {
+               crop->regionlist[i].y1 = offsets.endy - uaux + 1;
+           } else {
+               crop->regionlist[i].y1 = 0;
+           }
+           if (crop->regionlist[i].y1 < offsets.starty) {
+               crop->regionlist[i].y1 = offsets.starty;
+           }
 
-           test = offsets.endy - (offsets.crop_length * 1.0 * (seg - 1) / total);
-           if (test < 1 )
-             crop->regionlist[i].y2 = 0;
-           else
-	     {
-             if (test > (int32_t)(image->length - 1))
-               crop->regionlist[i].y2 = image->length - 1;
-             else 
-               crop->regionlist[i].y2 = test;
-	     }
+           uaux = (uint32_t)(offsets.crop_length * 1.0 * (seg - 1) / total);
+           if (uaux <= offsets.endy) {
+               crop->regionlist[i].y2 = offsets.endy - uaux;
+           } else {
+               crop->regionlist[i].y2 = 0;
+           }
+           if (crop->regionlist[i].y2 < offsets.starty) {
+               crop->regionlist[i].y2 = offsets.starty;
+           }
            zlength = crop->regionlist[i].y2 - crop->regionlist[i].y1 + 1;
 
 	   /* This is passed to extractCropZone or extractCompositeZones */
@@ -5555,32 +5679,42 @@ getCropOffsets(struct image_data *image, struct crop_mask *crop, struct dump_opt
            crop->combined_width = (uint32_t)zwidth;
            break;
       case EDGE_RIGHT: /* zones from right to left, length from top */
-           zlength = offsets.crop_length;
-	   crop->regionlist[i].y1 = offsets.starty;
-           crop->regionlist[i].y2 = offsets.endy;
+		  zlength = offsets.crop_length;
+		  crop->regionlist[i].y1 = offsets.starty;
+		  crop->regionlist[i].y2 = offsets.endy;
 
-           crop->regionlist[i].x1 = offsets.startx +
-                                  (uint32_t)(offsets.crop_width * (total - seg) * 1.0 / total);
-           test = offsets.startx + 
-	          (offsets.crop_width * (total - seg + 1) * 1.0 / total);
-           if (test < 1 )
-             crop->regionlist[i].x2 = 0;
-           else
-	     {
-	     if (test > (int32_t)(image->width - 1))
-               crop->regionlist[i].x2 = image->width - 1;
-             else
-               crop->regionlist[i].x2 = test - 1;
-             }
-           zwidth = crop->regionlist[i].x2 - crop->regionlist[i].x1  + 1;
+		  crop->regionlist[i].x1 = offsets.startx +
+			  (uint32_t)(offsets.crop_width * (total - seg) * 1.0 / total);
+          /* FAULT: IMHO from here on, the calculation of y2 are based on wrong assumtions. The whole image is assumed and 'endy' and 'starty' are not respected anymore!*/
+          /* NEW PROPOSED Code: Assumption: offsets are within image with top left corner as origin (0,0) and 'start' <= 'end'. */
+          uaux = (uint32_t)(offsets.crop_width * 1.0 * seg / total);
+          if (uaux <= offsets.endx + 1) {
+              crop->regionlist[i].x1 = offsets.endx - uaux + 1;
+          } else {
+              crop->regionlist[i].x1 = 0;
+          }
+          if (crop->regionlist[i].x1 < offsets.startx) {
+              crop->regionlist[i].x1 = offsets.startx;
+          }
 
-	   /* This is passed to extractCropZone or extractCompositeZones */
-           crop->combined_length = (uint32_t)zlength;
-           if (crop->exp_mode == COMPOSITE_IMAGES)
-             crop->combined_width += (uint32_t)zwidth;
-           else
-             crop->combined_width = (uint32_t)zwidth;
-           break;
+          uaux = (uint32_t)(offsets.crop_width * 1.0 * (seg - 1) / total);
+          if (uaux <= offsets.endx) {
+              crop->regionlist[i].x2 = offsets.endx - uaux;
+          } else {
+              crop->regionlist[i].x2 = 0;
+          }
+          if (crop->regionlist[i].x2 < offsets.startx) {
+              crop->regionlist[i].x2 = offsets.startx;
+          }
+          zwidth = crop->regionlist[i].x2 - crop->regionlist[i].x1 + 1;
+
+		  /* This is passed to extractCropZone or extractCompositeZones */
+		  crop->combined_length = (uint32_t)zlength;
+		  if (crop->exp_mode == COMPOSITE_IMAGES)
+			  crop->combined_width += (uint32_t)zwidth;
+		  else
+			  crop->combined_width = (uint32_t)zwidth;
+		  break;
       case EDGE_TOP: /* width from left, zones from top to bottom */
       default:
            zwidth = offsets.crop_width;
@@ -5588,6 +5722,14 @@ getCropOffsets(struct image_data *image, struct crop_mask *crop, struct dump_opt
            crop->regionlist[i].x2 = offsets.endx;
 
            crop->regionlist[i].y1 = offsets.starty + (uint32_t)(offsets.crop_length * 1.0 * (seg - 1) / total);
+           if (crop->regionlist[i].y1 > offsets.endy) {
+               crop->regionlist[i].y1 = offsets.endy;
+           } else if (crop->regionlist[i].y1 >= image->length) {
+               crop->regionlist[i].y1 = image->length - 1;
+           }
+
+           /* FAULT: IMHO from here on, the calculation of y2 are based on wrong assumtions. The whole image is assumed and 'endy' and 'starty' are not respected anymore!*/
+           /* OLD Code: 
            test = offsets.starty + (uint32_t)(offsets.crop_length * 1.0 * seg / total);
            if (test < 1 )
              crop->regionlist[i].y2 = 0;
@@ -5598,6 +5740,18 @@ getCropOffsets(struct image_data *image, struct crop_mask *crop, struct dump_opt
              else
 	       crop->regionlist[i].y2 = test - 1;
 	     }
+           */
+		   /* NEW PROPOSED Code: Assumption: offsets are within image with top left corner as origin (0,0) and 'start' <= 'end'. */
+		   crop->regionlist[i].y2 = offsets.starty + (uint32_t)(offsets.crop_length * 1.0 * seg / total);
+           if (crop->regionlist[i].y2 > 0)crop->regionlist[i].y2 = crop->regionlist[i].y2 - 1;
+		   if (crop->regionlist[i].y2 < crop->regionlist[i].y1) {
+			   crop->regionlist[i].y2 = crop->regionlist[i].y1;
+		   } else if (crop->regionlist[i].y2 > offsets.endy) {
+			   crop->regionlist[i].y2 = offsets.endy;
+		   } else if (crop->regionlist[i].y2 >= image->length) {
+			   crop->regionlist[i].y2 = image->length - 1;
+		   }
+
            zlength = crop->regionlist[i].y2 - crop->regionlist[i].y1 + 1;
 
 	   /* This is passed to extractCropZone or extractCompositeZones */
@@ -5622,8 +5776,11 @@ getCropOffsets(struct image_data *image, struct crop_mask *crop, struct dump_opt
                     i + 1, zwidth, zlength,
                crop->regionlist[i].x1, crop->regionlist[i].x2,
                crop->regionlist[i].y1, crop->regionlist[i].y2);
+  /* increment regions iterator */
+  i++;
     }
-
+    /* set number of generated regions out of given zones */
+    crop->selections = i;
   return (0);
   } /* end getCropOffsets */
 
@@ -5818,15 +5975,25 @@ computeOutputPixelOffsets (struct crop_mask *crop, struct image_data *image,
   if (orows < 1)
     orows = 1;
 
-  /* If user did not specify rows and cols, set them from calcuation */
-  if (page->rows < 1)
-    page->rows = orows;
-  if (page->cols < 1)
-    page->cols = ocols;
+  /* Always return rows and cols from calcuation above.
+   * (correct values needed external to this function)
+   * Warn, if user input settings has been changed.
+   */
 
-  line_bytes = TIFFhowmany8(owidth * image->bps) * image->spp;
+  if ((page->rows > 0) && (page->rows != orows)) {
+    TIFFError("computeOutputPixelOffsets",
+          "Number of user input section rows down (%"PRIu32") was changed to (%"PRIu32")", page->rows, orows);
+  }
+  page->rows = orows;
+  if ((page->cols > 0) && (page->cols != ocols)) {
+    TIFFError("computeOutputPixelOffsets",
+        "Number of user input section cols across (%"PRIu32") was changed to (%"PRIu32")", page->cols, ocols);
+  }
+  page->cols = ocols;
 
-  if ((page->rows * page->cols) > MAX_SECTIONS)
+  line_bytes = TIFFhowmany8(owidth * image->spp * image->bps);
+
+  if ((orows * ocols) > MAX_SECTIONS)
    {
    TIFFError("computeOutputPixelOffsets",
 	     "Rows and Columns exceed maximum sections\nIncrease resolution or reduce sections");
@@ -5834,13 +6001,13 @@ computeOutputPixelOffsets (struct crop_mask *crop, struct image_data *image,
    }
 
   /* build the list of offsets for each output section */
-  for (k = 0, i = 0 && k <= MAX_SECTIONS; i < orows; i++)
+  for (k = 0, i = 0; i < orows; i++)
     {
     y1 = (uint32_t)(olength * i);
     y2 = (uint32_t)(olength * (i + 1) - 1);
     if (y2 >= ilength)
       y2 = ilength - 1;
-    for (j = 0; j < ocols; j++, k++)
+    for (j = 0; (j < ocols) && (k < MAX_SECTIONS); j++, k++)
       {
       x1 = (uint32_t)(owidth * j);
       x2 = (uint32_t)(owidth * (j + 1) - 1);
@@ -6130,9 +6297,15 @@ loadImage(TIFF* in, struct image_data *image, struct dump_opts *dump, unsigned c
 	TIFFError("loadImage", "Integer overflow detected.");
 	exit(EXIT_FAILURE);
     }
-    if (buffsize < (uint32_t) (((length * width * spp * bps) + 7) / 8))
+    /* The buffsize_check and the possible adaptation of buffsize 
+     * has to account also for padding of each line to a byte boundary. 
+     * This is assumed by mirrorImage() and rotateImage().
+     * Otherwise buffer-overflow might occur there.
+     */
+    buffsize_check = length * (uint32_t)(((width * spp * bps) + 7) / 8);
+    if (buffsize < buffsize_check)
       {
-      buffsize =  ((length * width * spp * bps) + 7) / 8;
+      buffsize = buffsize_check;
 #ifdef DEBUG2
       TIFFError("loadImage",
 	        "Stripsize %"PRIu32" is too small, using imagelength * width * spp * bps / 8 = %"PRIu32,
@@ -6710,10 +6883,10 @@ extractImageSection(struct image_data *image, struct pageseg *section,
 #ifdef DEVELMODE
   uint32_t    img_length;
 #endif
-  uint32_t    j, shift1, shift2, trailing_bits;
+  uint32_t    j, shift1, trailing_bits;
   uint32_t    row, first_row, last_row, first_col, last_col;
   uint32_t    src_offset, dst_offset, row_offset, col_offset;
-  uint32_t    offset1, offset2, full_bytes;
+  uint32_t    offset1, full_bytes;
   uint32_t    sect_width;
 #ifdef DEVELMODE
   uint32_t    sect_length;
@@ -6723,7 +6896,6 @@ extractImageSection(struct image_data *image, struct pageseg *section,
 #ifdef DEVELMODE
   int      k;
   unsigned char bitset;
-  static char *bitarray = NULL;
 #endif
 
   img_width = image->width;
@@ -6741,17 +6913,12 @@ extractImageSection(struct image_data *image, struct pageseg *section,
   dst_offset = 0;
 
 #ifdef DEVELMODE
-  if (bitarray == NULL)
-    {
-    if ((bitarray = (char *)malloc(img_width)) == NULL)
-      {
-      TIFFError ("", "DEBUG: Unable to allocate debugging bitarray");
-      return (-1);
-      }
-    }
+  char bitarray[39];
 #endif
 
-  /* rows, columns, width, length are expressed in pixels */
+  /* rows, columns, width, length are expressed in pixels
+   * first_row, last_row, .. are index into image array starting at 0 to width-1,
+   * last_col shall be also extracted.  */
   first_row = section->y1;
   last_row  = section->y2;
   first_col = section->x1;
@@ -6761,9 +6928,14 @@ extractImageSection(struct image_data *image, struct pageseg *section,
 #ifdef DEVELMODE
   sect_length = last_row - first_row + 1;
 #endif
-  img_rowsize = ((img_width * bps + 7) / 8) * spp;
-  full_bytes = (sect_width * spp * bps) / 8;   /* number of COMPLETE bytes per row in section */
-  trailing_bits = (sect_width * bps) % 8;
+    /* The read function loadImage() used copy separate plane data into a buffer as interleaved
+     * samples rather than separate planes so the same logic works to extract regions
+     * regardless of the way the data are organized in the input file.
+     * Furthermore, bytes and bits are arranged in buffer according to COMPRESSION=1 and FILLORDER=1 
+     */
+    img_rowsize = (((img_width * spp * bps) + 7) / 8);    /* row size in full bytes of source image */
+    full_bytes = (sect_width * spp * bps) / 8;            /* number of COMPLETE bytes per row in section */
+    trailing_bits = (sect_width * spp * bps) % 8;         /* trailing bits within the last byte of destination buffer */
 
 #ifdef DEVELMODE
     TIFFError ("", "First row: %"PRIu32", last row: %"PRIu32", First col: %"PRIu32", last col: %"PRIu32"\n",
@@ -6776,10 +6948,9 @@ extractImageSection(struct image_data *image, struct pageseg *section,
 
   if ((bps % 8) == 0)
     {
-    col_offset = first_col * spp * bps / 8;
+    col_offset = (first_col * spp * bps) / 8;
     for (row = first_row; row <= last_row; row++)
       {
-      /* row_offset = row * img_width * spp * bps / 8; */
       row_offset = row * img_rowsize;
       src_offset = row_offset + col_offset;
 
@@ -6792,14 +6963,12 @@ extractImageSection(struct image_data *image, struct pageseg *section,
     }
   else
     { /* bps != 8 */
-    shift1  = spp * ((first_col * bps) % 8);
-    shift2  = spp * ((last_col * bps) % 8);
+    shift1 = ((first_col * spp * bps) % 8);           /* shift1 = bits to skip in the first byte of source buffer*/
     for (row = first_row; row <= last_row; row++)
       {
       /* pull out the first byte */
       row_offset = row * img_rowsize;
-      offset1 = row_offset + (first_col * bps / 8);
-      offset2 = row_offset + (last_col * bps / 8);
+      offset1 = row_offset + ((first_col * spp * bps) / 8);   /* offset1 = offset into source of byte with first bits to be extracted */
 
 #ifdef DEVELMODE
       for (j = 0, k = 7; j < 8; j++, k--)
@@ -6811,12 +6980,12 @@ extractImageSection(struct image_data *image, struct pageseg *section,
       sprintf(&bitarray[9], " ");
       for (j = 10, k = 7; j < 18; j++, k--)
         {
-        bitset = *(src_buff + offset2) & (((unsigned char)1 << k)) ? 1 : 0;
+        bitset = *(src_buff + offset1 + full_bytes) & (((unsigned char)1 << k)) ? 1 : 0;
         sprintf(&bitarray[j], (bitset) ? "1" : "0");
         }
       bitarray[18] = '\0';
-      TIFFError ("", "Row: %3d Offset1: %"PRIu32",  Shift1: %"PRIu32",    Offset2: %"PRIu32",  Shift2:  %"PRIu32"\n", 
-                 row, offset1, shift1, offset2, shift2); 
+      TIFFError ("", "Row: %3d Offset1: %"PRIu32",  Shift1: %"PRIu32",    Offset2: %"PRIu32",  Trailing_bits:  %"PRIu32"\n", 
+                 row, offset1, shift1, offset1+full_bytes, trailing_bits); 
 #endif
 
       bytebuff1 = bytebuff2 = 0;
@@ -6840,11 +7009,12 @@ extractImageSection(struct image_data *image, struct pageseg *section,
 
         if (trailing_bits != 0)
           {
-	  bytebuff2 = src_buff[offset2] & ((unsigned char)255 << (7 - shift2));
+      /* Only copy higher bits of samples and mask lower bits of not wanted column samples to zero */
+	  bytebuff2 = src_buff[offset1 + full_bytes] & ((unsigned char)255 << (8 - trailing_bits));
           sect_buff[dst_offset] = bytebuff2;
 #ifdef DEVELMODE
 	  TIFFError ("", "        Trailing bits src offset:  %8"PRIu32", Dst offset: %8"PRIu32"\n",
-                              offset2, dst_offset); 
+          offset1 + full_bytes, dst_offset);
           for (j = 30, k = 7; j < 38; j++, k--)
             {
             bitset = *(sect_buff + dst_offset) & (((unsigned char)1 << k)) ? 1 : 0;
@@ -6863,8 +7033,10 @@ extractImageSection(struct image_data *image, struct pageseg *section,
 #endif
         for (j = 0; j <= full_bytes; j++) 
           {
-	  bytebuff1 = src_buff[offset1 + j] & ((unsigned char)255 >> shift1);
-	  bytebuff2 = src_buff[offset1 + j + 1] & ((unsigned char)255 << (7 - shift1));
+          /* Skip the first shift1 bits and shift the source up by shift1 bits before save to destination.*/
+          /* Attention: src_buff size needs to be some bytes larger than image size, because could read behind image here. */
+          bytebuff1 = src_buff[offset1 + j] & ((unsigned char)255 >> shift1);
+          bytebuff2 = src_buff[offset1 + j + 1] & ((unsigned char)255 << (8 - shift1));
           sect_buff[dst_offset + j] = (bytebuff1 << shift1) | (bytebuff2 >> (8 - shift1));
           }
 #ifdef DEVELMODE
@@ -6880,36 +7052,17 @@ extractImageSection(struct image_data *image, struct pageseg *section,
 #endif
         dst_offset += full_bytes;
 
+        /* Copy the trailing_bits for the last byte in the destination buffer. 
+           Could come from one ore two bytes of the source buffer. */
         if (trailing_bits != 0)
           {
 #ifdef DEVELMODE
-	    TIFFError ("", "        Trailing bits   src offset: %8"PRIu32", Dst offset: %8"PRIu32"\n", offset1 + full_bytes, dst_offset);
+          TIFFError("", "        Trailing bits %4"PRIu32"   src offset: %8"PRIu32", Dst offset: %8"PRIu32"\n", trailing_bits, offset1 + full_bytes, dst_offset);
 #endif
-	  if (shift2 > shift1)
-            {
-	    bytebuff1 = src_buff[offset1 + full_bytes] & ((unsigned char)255 << (7 - shift2));
-            bytebuff2 = bytebuff1 & ((unsigned char)255 << shift1);
-            sect_buff[dst_offset] = bytebuff2;
-#ifdef DEVELMODE
-	    TIFFError ("", "        Shift2 > Shift1\n"); 
-#endif
+          /* More than necessary bits are already copied into last destination buffer, 
+           * only masking of last byte in destination buffer is necessary.*/ 
+          sect_buff[dst_offset] &= ((uint8_t)0xFF << (8 - trailing_bits));
             }
-          else
-            {
-	    if (shift2 < shift1)
-              {
-              bytebuff2 = ((unsigned char)255 << (shift1 - shift2 - 1));
-	      sect_buff[dst_offset] &= bytebuff2;
-#ifdef DEVELMODE
-	      TIFFError ("", "        Shift2 < Shift1\n"); 
-#endif
-              }
-#ifdef DEVELMODE
-            else
-	      TIFFError ("", "        Shift2 == Shift1\n"); 
-#endif
-            }
-	  }
 #ifdef DEVELMODE
 	  sprintf(&bitarray[28], " ");
 	  sprintf(&bitarray[29], " ");
@@ -7062,7 +7215,7 @@ writeImageSections(TIFF *in, TIFF *out, struct image_data *image,
     width  = sections[i].x2 - sections[i].x1 + 1;
     length = sections[i].y2 - sections[i].y1 + 1;
     sectsize = (uint32_t)
-	    ceil((width * image->bps + 7) / (double)8) * image->spp * length;
+	    ceil((width * image->bps * image->spp + 7) / (double)8) * length;
     /* allocate a buffer if we don't have one already */
     if (createImageSection(sectsize, sect_buff_ptr))
       {
@@ -7377,7 +7530,11 @@ createImageSection(uint32_t sectsize, unsigned char **sect_buff_ptr)
   if (!sect_buff)
     {
     sect_buff = (unsigned char *)limitMalloc(sectsize);
-    *sect_buff_ptr = sect_buff;
+    if (!sect_buff)
+    {
+        TIFFError("createImageSection", "Unable to allocate/reallocate section buffer");
+        return (-1);
+    }
     _TIFFmemset(sect_buff, 0, sectsize);
     }
   else
@@ -7393,15 +7550,15 @@ createImageSection(uint32_t sectsize, unsigned char **sect_buff_ptr)
       else
         sect_buff = new_buff;
 
+      if (!sect_buff)
+      {
+          TIFFError("createImageSection", "Unable to allocate/reallocate section buffer");
+          return (-1);
+      }
       _TIFFmemset(sect_buff, 0, sectsize);
       }
     }
 
-  if (!sect_buff)
-    {
-    TIFFError("createImageSection", "Unable to allocate/reallocate section buffer");
-    return (-1);
-    }
   prev_sectsize = sectsize;
   *sect_buff_ptr = sect_buff;
 
@@ -7528,7 +7685,8 @@ processCropSelections(struct image_data *image, struct crop_mask *crop,
     total_width = total_length = 0;
     for (i = 0; i < crop->selections; i++)
       {
-      cropsize = crop->bufftotal;
+
+        cropsize = crop->bufftotal;
       crop_buff = seg_buffs[i].buffer; 
       if (!crop_buff)
         crop_buff = (unsigned char *)limitMalloc(cropsize);
@@ -7617,6 +7775,9 @@ processCropSelections(struct image_data *image, struct crop_mask *crop,
 
       if (crop->crop_mode & CROP_ROTATE) /* rotate should be last as it can reallocate the buffer */
         {
+          /* rotateImage() changes image->width, ->length, ->xres and ->yres, what it schouldn't do here, when more than one section is processed. 
+           * ToDo: Therefore rotateImage() and its usage has to be reworked (e.g. like mirrorImage()) !!
+           */
 	if (rotateImage(crop->rotation, image, &crop->regionlist[i].width, 
 			&crop->regionlist[i].length, &crop_buff))
           {
@@ -7632,8 +7793,8 @@ processCropSelections(struct image_data *image, struct crop_mask *crop,
         seg_buffs[i].size = (((crop->regionlist[i].width * image->bps + 7 ) / 8)
                                * image->spp) * crop->regionlist[i].length; 
         }
-      }
-    }
+      }  /* for crop->selections loop */
+    }  /* Separated Images (else case) */
   return (0);
   } /* end processCropSelections */
 
@@ -7668,7 +7829,11 @@ createCroppedImage(struct image_data *image, struct crop_mask *crop,
   if (!crop_buff)
     {
     crop_buff = (unsigned char *)limitMalloc(cropsize);
-    *crop_buff_ptr = crop_buff;
+    if (!crop_buff)
+    {
+        TIFFError("createCroppedImage", "Unable to allocate/reallocate crop buffer");
+        return (-1);
+    }
     _TIFFmemset(crop_buff, 0, cropsize);
     prev_cropsize = cropsize;
     }
@@ -7684,15 +7849,15 @@ createCroppedImage(struct image_data *image, struct crop_mask *crop,
         }
       else
         crop_buff = new_buff;
+      if (!crop_buff)
+      {
+          TIFFError("createCroppedImage", "Unable to allocate/reallocate crop buffer");
+          return (-1);
+      }
       _TIFFmemset(crop_buff, 0, cropsize);
       }
     }
 
-  if (!crop_buff)
-    {
-    TIFFError("createCroppedImage", "Unable to allocate/reallocate crop buffer");
-    return (-1);
-    }
   *crop_buff_ptr = crop_buff;
 
   if (crop->crop_mode & CROP_INVERT)
@@ -9251,3 +9416,4 @@ invertImage(uint16_t photometric, uint16_t spp, uint16_t bps, uint32_t width, ui
  * fill-column: 78
  * End:
  */
+

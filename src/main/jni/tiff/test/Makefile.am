@@ -68,8 +68,8 @@ endif
 # Executable programs which need to be built in order to support tests
 check_PROGRAMS = \
 	ascii_tag long_tag short_tag strip_rw rewrite custom_dir custom_dir_EXIF_231 \
-	rational_precision2double defer_strile_loading defer_strile_writing testtypes \
-	$(JPEG_DEPENDENT_CHECK_PROG)
+	rational_precision2double defer_strile_loading defer_strile_writing test_directory \
+	testtypes test_signed_tags $(JPEG_DEPENDENT_CHECK_PROG)
 
 # Test scripts to execute
 TESTSCRIPTS = \
@@ -184,7 +184,8 @@ TIFFIMAGES = \
 	images/ojpeg_chewey_subsamp21_multi_strip.tiff \
 	images/ojpeg_single_strip_no_rowsperstrip.tiff \
 	images/testfax4.tiff \
-	images/deflate-last-strip-extra-data.tiff
+	images/deflate-last-strip-extra-data.tiff \
+	images/custom_dir_EXIF_GPS.tiff
 
 PNMIMAGES = \
 	images/minisblack-1c-8b.pgm \
@@ -198,11 +199,15 @@ PNMIMAGES = \
 IMAGES_EXTRA_DIST = \
 	images/README.txt \
 	images/miniswhite-1c-1b.g3 \
+	images/test_float64_predictor2_le_lzw.tif \
+	images/test_float64_predictor2_be_lzw.tif \
 	$(PNMIMAGES) \
 	$(TIFFIMAGES)
 
 noinst_HEADERS = tifftest.h
 
+test_signed_tags_SOURCES = test_signed_tags.c
+test_signed_tags_LDADD = $(LIBTIFF)
 ascii_tag_SOURCES = ascii_tag.c
 ascii_tag_LDADD = $(LIBTIFF)
 long_tag_SOURCES = long_tag.c check_tag.c
@@ -225,6 +230,8 @@ defer_strile_loading_SOURCES = defer_strile_loading.c
 defer_strile_loading_LDADD = $(LIBTIFF)
 defer_strile_writing_SOURCES = defer_strile_writing.c
 defer_strile_writing_LDADD = $(LIBTIFF)
+test_directory_SOURCES = test_directory.c
+test_directory_LDADD = $(LIBTIFF)
 
 AM_CPPFLAGS = -I$(top_srcdir)/libtiff
 
