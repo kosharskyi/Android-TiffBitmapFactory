@@ -21,6 +21,7 @@ LOCAL_TIFF_SRC_FILES := \
         libtiff/tif_fax3sm.c \
         libtiff/tif_flush.c \
         libtiff/tif_getimage.c \
+    	libtiff/tif_hash_set.c \
         libtiff/tif_jbig.c \
         libtiff/tif_jpeg_12.c \
         libtiff/tif_jpeg.c \

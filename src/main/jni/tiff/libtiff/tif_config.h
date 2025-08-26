@@ -99,7 +99,7 @@
 #define PACKAGE_NAME "LibTIFF Software"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "LibTIFF Software 4.4.0"
+#define PACKAGE_STRING "LibTIFF Software 4.5.0"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "tiff"
@@ -108,7 +108,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "4.4.0"
+#define PACKAGE_VERSION "4.5.0"
 
 /* The size of `size_t', as computed by sizeof. */
 #define SIZEOF_SIZE_T 8
@@ -116,11 +116,14 @@
 /* Default size of the strip in bytes (when strip chopping enabled) */
 #define STRIP_SIZE_DEFAULT 8192
 
+/* Maximum number of TIFF IFDs that libtiff can iterate through in a file. */
+#define TIFF_MAX_DIR_COUNT 1048576
+
 /* define to use win32 IO system */
 /* #undef USE_WIN32_FILEIO */
 
 /* Version number of package */
-#define VERSION "4.4.0"
+#define VERSION "4.5.0"
 
 /* Support webp compression */
 //#define WEBP_SUPPORT 0
