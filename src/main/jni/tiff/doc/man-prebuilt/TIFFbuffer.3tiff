@@ -27,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "TIFFBUFFER" "3tiff" "Jun 10, 2023" "4.5" "LibTIFF"
+.TH "TIFFBUFFER" "3tiff" "Sep 11, 2024" "4.7" "LibTIFF"
 .SH NAME
 TIFFbuffer \- I/O buffering control routines
 .SH SYNOPSIS
@@ -53,7 +53,7 @@ TIFFbuffer \- I/O buffering control routines
 .sp
 The following routines are provided for client\-control of the I/O buffers
 used by the library. Applications need never use these routines; they are
-provided only for “intelligent clients” that wish to optimize memory usage
+provided only for \(dqintelligent clients\(dq that wish to optimize memory usage
 and/or eliminate potential copy operations that can occur when working with
 images that have data stored without compression.
 .sp

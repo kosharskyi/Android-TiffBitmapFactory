@@ -486,13 +486,13 @@ static uint32_t rowsperstrip = 0;
 static uint32_t g3opts = 0;
 static int ignore = FALSE; /* if true, ignore read errors */
 static uint32_t defg3opts = (uint32_t)-1;
-static int quality = 100; /* JPEG quality */
-/* static int    jpegcolormode = -1;        was JPEGCOLORMODE_RGB;  */
-static int jpegcolormode = JPEGCOLORMODE_RGB;
+static int quality = 100;      /* JPEG quality */
+static int jpegcolormode = -1; /* means YCbCr or to not convert */
 static uint16_t defcompression = (uint16_t)-1;
 static uint16_t defpredictor = (uint16_t)-1;
 static int pageNum = 0;
 static int little_endian = 1;
+static tmsize_t check_buffsize = 0;
 
 /* Functions adapted from tiffcp with additions or significant modifications */
 static int readContigStripsIntoBuffer(TIFF *, uint8_t *);
@@ -755,10 +755,10 @@ static const char usage_info[] =
     " -c jpeg[:opts] Compress output with JPEG encoding\n"
     /* "    JPEG options:\n" */
     "    #        Set compression quality level (0-100, default 100)\n"
-    "    raw      Output color image as raw YCbCr (default)\n"
-    "    rgb      Output color image as RGB\n"
-    "    For example, -c jpeg:rgb:50 for JPEG-encoded RGB with 50% comp. "
-    "quality\n"
+    "    raw      Output same colorspace image as input\n"
+    "    rgb      Output color image as RGB (default is YCbCr)\n"
+    "    For example, -c jpeg:raw:50 for JPEG-encoded with 50% comp. "
+    "quality and the same colorspace\n"
 #endif
 #ifdef PACKBITS_SUPPORT
     " -c packbits Compress output with packbits encoding\n"
@@ -1133,9 +1133,6 @@ static int readContigTilesIntoBuffer(TIFF *in, uint8_t *buf,
                             return 1;
                     }
                 }
-                prev_trailing_bits += trailing_bits;
-                /* if (prev_trailing_bits > 7) */
-                /*   prev_trailing_bits-= 8; */
             }
         }
     }
@@ -1369,7 +1366,7 @@ static int writeBufferToSeparateStrips(TIFF *out, uint8_t *buf, uint32_t length,
                   "bytes_per_sample * (width + 1)");
         return 1;
     }
-    rowstripsize = rowsperstrip * bytes_per_sample * (width + 1);
+    rowstripsize = (tsize_t)rowsperstrip * bytes_per_sample * (width + 1);
 
     /* Add 3 padding bytes for extractContigSamples32bits */
     obuf = limitMalloc(rowstripsize + NUM_BUFF_OVERSIZE_BYTES);
@@ -1401,11 +1398,12 @@ static int writeBufferToSeparateStrips(TIFF *out, uint8_t *buf, uint32_t length,
                               "might be wrong.",
                               (uint64_t)scanlinesize);
                 }
-                dump_info(dump->outfile, dump->format, "",
-                          "Sample %2d, Strip: %2d, bytes: %4d, Row %4d, bytes: "
-                          "%4d, Input offset: %6d",
-                          s + 1, strip + 1, stripsize, row + 1,
-                          (uint32_t)scanlinesize, src - buf);
+                dump_info(
+                    dump->outfile, dump->format, "",
+                    "Sample %2d, Strip: %2d, bytes: %4zd, Row %4d, bytes: "
+                    "%4d, Input offset: %6zd",
+                    s + 1, strip + 1, stripsize, row + 1,
+                    (uint32_t)scanlinesize, src - buf);
                 dump_buffer(dump->outfile, dump->format, nrows,
                             (uint32_t)scanlinesize, row, obuf);
             }
@@ -2398,6 +2396,12 @@ void process_command_opts(int argc, char *argv[], char *mp, char *mode,
                         "%d", MAX_SECTIONS);
                     exit(EXIT_FAILURE);
                 }
+                if ((page->cols * page->rows) < 1)
+                {
+                    TIFFError("No subdivisions", "%d",
+                              (page->cols * page->rows));
+                    exit(EXIT_FAILURE);
+                }
                 page->mode |= PAGE_MODE_ROWSCOLS;
                 break;
             case 'U': /* units for measurements and offsets */
@@ -2647,8 +2651,7 @@ int main(int argc, char *argv[])
 
     if ((argc - optind) == 2)
         pageNum = -1;
-    else
-        total_images = 0;
+
     /* Read multiple input files and write to output file(s) */
     while (optind < argc - 1)
     {
@@ -3418,7 +3421,6 @@ static int extractContigSamples16bits(uint8_t *in, uint8_t *out, uint32_t cols,
             buff1 = (buff1 & matchbits) << (src_bit);
             if (ready_bits < 8) /* add another bps bits to the buffer */
             {
-                bytebuff = 0;
                 buff2 = (buff2 | (buff1 >> ready_bits));
             }
             else /* If we have a full buffer's worth, write it out */
@@ -3536,7 +3538,6 @@ static int extractContigSamples24bits(uint8_t *in, uint8_t *out, uint32_t cols,
 
             if (ready_bits < 16) /* add another bps bits to the buffer */
             {
-                bytebuff1 = bytebuff2 = 0;
                 buff2 = (buff2 | (buff1 >> ready_bits));
             }
             else /* If we have a full buffer's worth, write it out */
@@ -3672,7 +3673,6 @@ static int extractContigSamples32bits(uint8_t *in, uint8_t *out, uint32_t cols,
             }
             else
             { /* add another bps bits to the buffer */
-                bytebuff1 = bytebuff2 = bytebuff3 = bytebuff4 = 0;
                 buff2 = (buff2 | (buff1 >> ready_bits));
             }
             ready_bits += bps;
@@ -3916,9 +3916,9 @@ static int extractContigSamplesShifted24bits(uint8_t *in, uint8_t *out,
      */
     /*--- Remark, which is true for all those functions
      * extractCongigSamplesXXX() -- The mitigation of the start/end test does
-     * not allways make sense, because the function is often called with e.g.:
+     * not always make sense, because the function is often called with e.g.:
      *  start = 31; end = 32; cols = 32  to extract the last column in a 32x32
-     * sample image. If then, a worng parameter (e.g. cols = 10) is provided,
+     * sample image. If then, a wrong parameter (e.g. cols = 10) is provided,
      * the mitigated settings would be start=0; end=1. Therefore, an error
      * message and no copy action might be the better reaction to wrong
      * parameter configurations.
@@ -3980,7 +3980,6 @@ static int extractContigSamplesShifted24bits(uint8_t *in, uint8_t *out,
 
             if (ready_bits < 16) /* add another bps bits to the buffer */
             {
-                bytebuff1 = bytebuff2 = 0;
                 buff2 = (buff2 | (buff1 >> ready_bits));
             }
             else /* If we have a full buffer's worth, write it out */
@@ -4104,7 +4103,6 @@ static int extractContigSamplesShifted32bits(uint8_t *in, uint8_t *out,
 
             if (ready_bits < 32)
             { /* add another bps bits to the buffer */
-                bytebuff1 = bytebuff2 = bytebuff3 = bytebuff4 = 0;
                 buff2 = (buff2 | (buff1 >> ready_bits));
             }
             else /* If we have a full buffer's worth, write it out */
@@ -4387,7 +4385,6 @@ static int combineSeparateSamplesBytes(unsigned char *srcbuffs[],
                 src = srcbuffs[s] + col_offset;
                 for (i = 0; i < bytes_per_sample; i++)
                     *(dst + i) = *(src + i);
-                src += bytes_per_sample;
                 dst += bytes_per_sample;
             }
         }
@@ -4612,7 +4609,7 @@ static int combineSeparateSamples16bits(uint8_t *in[], uint8_t *out,
             {
                 dump_info(dumpfile, format, "",
                           "Row %3d, Col %3d, Src byte offset %3d  bit offset "
-                          "%2d  Dst offset %3d",
+                          "%2d  Dst offset %3zd",
                           row + 1, col + 1, src_byte, src_bit, dst - out);
                 dump_byte(dumpfile, format, "Final bits", bytebuff);
             }
@@ -4742,7 +4739,7 @@ static int combineSeparateSamples24bits(uint8_t *in[], uint8_t *out,
         {
             dump_info(dumpfile, format, "",
                       "Row %3d, Col %3d, Src byte offset %3d  bit offset %2d  "
-                      "Dst offset %3d",
+                      "Dst offset %3zd",
                       row + 1, col + 1, src_byte, src_bit, dst - out);
 
             dump_long(dumpfile, format, "Match bits ", matchbits);
@@ -4883,7 +4880,7 @@ static int combineSeparateSamples32bits(uint8_t *in[], uint8_t *out,
         {
             dump_info(dumpfile, format, "",
                       "Row %3d, Col %3d, Src byte offset %3d  bit offset %2d  "
-                      "Dst offset %3d",
+                      "Dst offset %3zd",
                       row + 1, col + 1, src_byte, src_bit, dst - out);
 
             dump_wide(dumpfile, format, "Match bits ", matchbits);
@@ -4945,7 +4942,7 @@ static int combineSeparateTileSamplesBytes(unsigned char *srcbuffs[],
         dst = out + (row * dst_rowsize);
         src_offset = row * src_rowsize;
 #ifdef DEVELMODE
-        TIFFError("", "Tile row %4d, Src offset %6d   Dst offset %6d", row,
+        TIFFError("", "Tile row %4d, Src offset %6d   Dst offset %6zd", row,
                   src_offset, dst - out);
 #endif
         for (col = 0; col < cols; col++)
@@ -5061,7 +5058,7 @@ static int combineSeparateTileSamples8bits(uint8_t *in[], uint8_t *out,
             {
                 dump_info(dumpfile, format, "",
                           "Row %3d, Col %3d, Src byte offset %3d  bit offset "
-                          "%2d  Dst offset %3d",
+                          "%2d  Dst offset %3zd",
                           row + 1, col + 1, src_byte, src_bit, dst - out);
                 dump_byte(dumpfile, format, "Final bits", buff1);
             }
@@ -5179,7 +5176,7 @@ static int combineSeparateTileSamples16bits(uint8_t *in[], uint8_t *out,
             {
                 dump_info(dumpfile, format, "",
                           "Row %3d, Col %3d, Src byte offset %3d  bit offset "
-                          "%2d  Dst offset %3d",
+                          "%2d  Dst offset %3zd",
                           row + 1, col + 1, src_byte, src_bit, dst - out);
                 dump_byte(dumpfile, format, "Final bits", bytebuff);
             }
@@ -5308,7 +5305,7 @@ static int combineSeparateTileSamples24bits(uint8_t *in[], uint8_t *out,
         {
             dump_info(dumpfile, format, "",
                       "Row %3d, Col %3d, Src byte offset %3d  bit offset %2d  "
-                      "Dst offset %3d",
+                      "Dst offset %3zd",
                       row + 1, col + 1, src_byte, src_bit, dst - out);
 
             dump_long(dumpfile, format, "Match bits ", matchbits);
@@ -5451,7 +5448,7 @@ static int combineSeparateTileSamples32bits(uint8_t *in[], uint8_t *out,
         {
             dump_info(dumpfile, format, "",
                       "Row %3d, Col %3d, Src byte offset %3d  bit offset %2d  "
-                      "Dst offset %3d",
+                      "Dst offset %3zd",
                       row + 1, col + 1, src_byte, src_bit, dst - out);
 
             dump_wide(dumpfile, format, "Match bits ", matchbits);
@@ -5573,7 +5570,14 @@ static int readSeparateStripsIntoBuffer(TIFF *in, uint8_t *obuf,
             buff = srcbuffs[s];
             strip = (s * strips_per_sample) + j;
             bytes_read = TIFFReadEncodedStrip(in, strip, buff, stripsize);
-            rows_this_strip = (uint32_t)(bytes_read / src_rowsize);
+            if (bytes_read < 0)
+            {
+                rows_this_strip = 0;
+            }
+            else
+            {
+                rows_this_strip = (uint32_t)(bytes_read / src_rowsize);
+            }
             if (bytes_read < 0 && !ignore)
             {
                 TIFFError(TIFFFileName(in),
@@ -5585,7 +5589,7 @@ static int readSeparateStripsIntoBuffer(TIFF *in, uint8_t *obuf,
             }
 #ifdef DEVELMODE
             TIFFError("",
-                      "Strip %2" PRIu32 ", read %5" PRId32
+                      "Strip %2" PRIu32 ", read %5zd"
                       " bytes for %4" PRIu32 " scanlines, shift width %d",
                       strip, bytes_read, rows_this_strip, shift_width);
 #endif
@@ -6002,7 +6006,8 @@ static int computeInputPixelOffsets(struct crop_mask *crop,
             rmargin = _TIFFClampDoubleToUInt32(crop->margins[3] * scale * xres);
         }
 
-        if ((lmargin + rmargin) > image->width)
+        if (lmargin == 0xFFFFFFFFU || rmargin == 0xFFFFFFFFU ||
+            (lmargin + rmargin) > image->width)
         {
             TIFFError("computeInputPixelOffsets",
                       "Combined left and right margins exceed image width");
@@ -6010,7 +6015,8 @@ static int computeInputPixelOffsets(struct crop_mask *crop,
             rmargin = (uint32_t)0;
             return (-1);
         }
-        if ((tmargin + bmargin) > image->length)
+        if (tmargin == 0xFFFFFFFFU || bmargin == 0xFFFFFFFFU ||
+            (tmargin + bmargin) > image->length)
         {
             TIFFError("computeInputPixelOffsets",
                       "Combined top and bottom margins exceed image length");
@@ -6269,7 +6275,7 @@ static int getCropOffsets(struct image_data *image, struct crop_mask *crop,
                     offsets.startx +
                     (uint32_t)(offsets.crop_width * 1.0 * (seg - 1) / total);
                 /* FAULT: IMHO in the old code here, the calculation of x2 was
-                 * based on wrong assumtions. The whole image was assumed and
+                 * based on wrong assumptions. The whole image was assumed and
                  * 'endy' and 'starty' are not respected anymore!*/
                 /* NEW PROPOSED Code: Assumption: offsets are within image with
                  * top left corner as origin (0,0) and 'start' <= 'end'. */
@@ -6307,6 +6313,18 @@ static int getCropOffsets(struct image_data *image, struct crop_mask *crop,
                     crop->combined_width += (uint32_t)zwidth;
                 else
                     crop->combined_width = (uint32_t)zwidth;
+
+                /* When the degrees clockwise rotation is 90 or 270, check the
+                 * boundary */
+                if (((crop->rotation == 90) || (crop->rotation == 270)) &&
+                    ((crop->combined_length > image->width) ||
+                     (crop->combined_width > image->length)))
+                {
+                    TIFFError("getCropOffsets",
+                              "The crop size exceeds the image boundary size");
+                    return -1;
+                }
+
                 break;
             case EDGE_BOTTOM: /* width from left, zones from bottom to top */
                 zwidth = offsets.crop_width;
@@ -6314,7 +6332,7 @@ static int getCropOffsets(struct image_data *image, struct crop_mask *crop,
                 crop->regionlist[i].x2 = offsets.endx;
 
                 /* FAULT: IMHO in the old code here, the calculation of y1/y2
-                 * was based on wrong assumtions. The whole image was assumed
+                 * was based on wrong assumptions. The whole image was assumed
                  * and 'endy' and 'starty' are not respected anymore!*/
                 /* NEW PROPOSED Code: Assumption: offsets are within image with
                  * top left corner as origin (0,0) and 'start' <= 'end'. */
@@ -6354,6 +6372,18 @@ static int getCropOffsets(struct image_data *image, struct crop_mask *crop,
                 else
                     crop->combined_length = (uint32_t)zlength;
                 crop->combined_width = (uint32_t)zwidth;
+
+                /* When the degrees clockwise rotation is 90 or 270, check the
+                 * boundary */
+                if (((crop->rotation == 90) || (crop->rotation == 270)) &&
+                    ((crop->combined_length > image->width) ||
+                     (crop->combined_width > image->length)))
+                {
+                    TIFFError("getCropOffsets",
+                              "The crop size exceeds the image boundary size");
+                    return -1;
+                }
+
                 break;
             case EDGE_RIGHT: /* zones from right to left, length from top */
                 zlength = offsets.crop_length;
@@ -6364,7 +6394,7 @@ static int getCropOffsets(struct image_data *image, struct crop_mask *crop,
                     offsets.startx + (uint32_t)(offsets.crop_width *
                                                 (total - seg) * 1.0 / total);
                 /* FAULT: IMHO from here on, the calculation of y2 are based on
-                 * wrong assumtions. The whole image is assumed and 'endy' and
+                 * wrong assumptions. The whole image is assumed and 'endy' and
                  * 'starty' are not respected anymore!*/
                 /* NEW PROPOSED Code: Assumption: offsets are within image with
                  * top left corner as origin (0,0) and 'start' <= 'end'. */
@@ -6403,6 +6433,18 @@ static int getCropOffsets(struct image_data *image, struct crop_mask *crop,
                     crop->combined_width += (uint32_t)zwidth;
                 else
                     crop->combined_width = (uint32_t)zwidth;
+
+                /* When the degrees clockwise rotation is 90 or 270, check the
+                 * boundary */
+                if (((crop->rotation == 90) || (crop->rotation == 270)) &&
+                    ((crop->combined_length > image->width) ||
+                     (crop->combined_width > image->length)))
+                {
+                    TIFFError("getCropOffsets",
+                              "The crop size exceeds the image boundary size");
+                    return -1;
+                }
+
                 break;
             case EDGE_TOP: /* width from left, zones from top to bottom */
             default:
@@ -6423,7 +6465,7 @@ static int getCropOffsets(struct image_data *image, struct crop_mask *crop,
                 }
 
                 /* FAULT: IMHO from here on, the calculation of y2 are based on
-                 * wrong assumtions. The whole image is assumed and 'endy' and
+                 * wrong assumptions. The whole image is assumed and 'endy' and
                  * 'starty' are not respected anymore!*/
                 /* OLD Code:
                 test = offsets.starty + (uint32_t)(offsets.crop_length * 1.0 *
@@ -6463,6 +6505,18 @@ static int getCropOffsets(struct image_data *image, struct crop_mask *crop,
                 else
                     crop->combined_length = (uint32_t)zlength;
                 crop->combined_width = (uint32_t)zwidth;
+
+                /* When the degrees clockwise rotation is 90 or 270, check the
+                 * boundary */
+                if (((crop->rotation == 90) || (crop->rotation == 270)) &&
+                    ((crop->combined_length > image->width) ||
+                     (crop->combined_width > image->length)))
+                {
+                    TIFFError("getCropOffsets",
+                              "The crop size exceeds the image boundary size");
+                    return -1;
+                }
+
                 break;
         } /* end switch statement */
 
@@ -6592,14 +6646,14 @@ static int computeOutputPixelOffsets(struct crop_mask *crop,
                                                ((image->bps + 7) / 8));
         }
 
-        if ((hmargin * 2.0) > (pwidth * page->hres))
+        if (hmargin == 0xFFFFFFFFU || (hmargin * 2.0) > (pwidth * page->hres))
         {
             TIFFError("computeOutputPixelOffsets",
                       "Combined left and right margins exceed page width");
             hmargin = (uint32_t)0;
             return (-1);
         }
-        if ((vmargin * 2.0) > (plength * page->vres))
+        if (vmargin == 0xFFFFFFFFU || (vmargin * 2.0) > (plength * page->vres))
         {
             TIFFError("computeOutputPixelOffsets",
                       "Combined top and bottom margins exceed page length");
@@ -7077,7 +7131,6 @@ static int loadImage(TIFF *in, struct image_data *image, struct dump_opts *dump,
 
     if (input_compression == COMPRESSION_JPEG)
     { /* Force conversion to RGB */
-        jpegcolormode = JPEGCOLORMODE_RGB;
         TIFFSetField(in, TIFFTAG_JPEGCOLORMODE, JPEGCOLORMODE_RGB);
     }
     /* The clause up to the read statement is taken from Tom Lane's tiffcp patch
@@ -7121,6 +7174,7 @@ static int loadImage(TIFF *in, struct image_data *image, struct dump_opts *dump,
         TIFFError("loadImage", "Unable to allocate read buffer");
         return (-1);
     }
+    check_buffsize = buffsize + NUM_BUFF_OVERSIZE_BYTES;
 
     read_buff[buffsize] = 0;
     read_buff[buffsize + 1] = 0;
@@ -7768,13 +7822,12 @@ static int extractImageSection(struct image_data *image,
      * the input file. Furthermore, bytes and bits are arranged in buffer
      * according to COMPRESSION=1 and FILLORDER=1
      */
-    img_rowsize = (((img_width * spp * bps) + 7) /
-                   8); /* row size in full bytes of source image */
-    full_bytes = (sect_width * spp * bps) /
-                 8; /* number of COMPLETE bytes per row in section */
-    trailing_bits =
-        (sect_width * spp * bps) %
-        8; /* trailing bits within the last byte of destination buffer */
+    /* row size in full bytes of source image */
+    img_rowsize = (((img_width * spp * bps) + 7) / 8);
+    /* number of COMPLETE bytes per row in section */
+    full_bytes = (sect_width * spp * bps) / 8;
+    /* trailing bits within the last byte of destination buffer */
+    trailing_bits = (sect_width * spp * bps) % 8;
 
 #ifdef DEVELMODE
     TIFFError("",
@@ -7803,6 +7856,12 @@ static int extractImageSection(struct image_data *image,
             TIFFError("", "Src offset: %8" PRIu32 ", Dst offset: %8" PRIu32,
                       src_offset, dst_offset);
 #endif
+            if (src_offset + full_bytes >= check_buffsize)
+            {
+                printf(
+                    "Bad input. Preventing reading outside of input buffer.\n");
+                return (-1);
+            }
             _TIFFmemcpy(sect_buff + dst_offset, src_buff + src_offset,
                         full_bytes);
             dst_offset += full_bytes;
@@ -7849,6 +7908,12 @@ static int extractImageSection(struct image_data *image,
             bytebuff1 = bytebuff2 = 0;
             if (shift1 == 0) /* the region is byte and sample aligned */
             {
+                if (offset1 + full_bytes >= check_buffsize)
+                {
+                    printf("Bad input. Preventing reading outside of input "
+                           "buffer.\n");
+                    return (-1);
+                }
                 _TIFFmemcpy(sect_buff + dst_offset, src_buff + offset1,
                             full_bytes);
 
@@ -7876,6 +7941,12 @@ static int extractImageSection(struct image_data *image,
                 {
                     /* Only copy higher bits of samples and mask lower bits of
                      * not wanted column samples to zero */
+                    if (offset1 + full_bytes >= check_buffsize)
+                    {
+                        printf("Bad input. Preventing reading outside of input "
+                               "buffer.\n");
+                        return (-1);
+                    }
                     bytebuff2 = src_buff[offset1 + full_bytes] &
                                 ((unsigned char)255 << (8 - trailing_bits));
                     sect_buff[dst_offset] = bytebuff2;
@@ -7916,6 +7987,12 @@ static int extractImageSection(struct image_data *image,
                      * shift1 bits before save to destination.*/
                     /* Attention: src_buff size needs to be some bytes larger
                      * than image size, because could read behind image here. */
+                    if (offset1 + j + 1 >= check_buffsize)
+                    {
+                        printf("Bad input. Preventing reading outside of input "
+                               "buffer.\n");
+                        return (-1);
+                    }
                     bytebuff1 =
                         src_buff[offset1 + j] & ((unsigned char)255 >> shift1);
                     bytebuff2 = src_buff[offset1 + j + 1] &
@@ -8211,11 +8288,19 @@ static int writeSingleSection(TIFF *in, TIFF *out, struct image_data *image,
                                                                  : "mask");
             return (-1);
         }
-        if ((input_photometric == PHOTOMETRIC_RGB) &&
-            (jpegcolormode == JPEGCOLORMODE_RGB))
+        if (jpegcolormode == JPEGCOLORMODE_RGB &&
+            input_photometric == PHOTOMETRIC_YCBCR)
+        {
+            TIFFSetField(out, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_RGB);
+        }
+        else if (jpegcolormode == -1 && input_photometric == PHOTOMETRIC_RGB)
+        {
             TIFFSetField(out, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_YCBCR);
+        }
         else
+        {
             TIFFSetField(out, TIFFTAG_PHOTOMETRIC, input_photometric);
+        }
     }
     else
     {
@@ -8978,11 +9063,19 @@ static int writeCroppedImage(TIFF *in, TIFF *out, struct image_data *image,
                                                                  : "mask");
             return (-1);
         }
-        if ((input_photometric == PHOTOMETRIC_RGB) &&
-            (jpegcolormode == JPEGCOLORMODE_RGB))
+        if (jpegcolormode == JPEGCOLORMODE_RGB &&
+            input_photometric == PHOTOMETRIC_YCBCR)
+        {
+            TIFFSetField(out, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_RGB);
+        }
+        else if (jpegcolormode == -1 && input_photometric == PHOTOMETRIC_RGB)
+        {
             TIFFSetField(out, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_YCBCR);
+        }
         else
+        {
             TIFFSetField(out, TIFFTAG_PHOTOMETRIC, input_photometric);
+        }
     }
     else
     {
@@ -9381,7 +9474,6 @@ static int rotateContigSamples16bits(uint16_t rotation, uint16_t spp,
             }
             else
             { /* add another bps bits to the buffer */
-                bytebuff = 0;
                 buff2 = (buff2 | (buff1 >> ready_bits));
             }
             ready_bits += bps;
@@ -9474,7 +9566,6 @@ static int rotateContigSamples24bits(uint16_t rotation, uint16_t spp,
             }
             else
             { /* add another bps bits to the buffer */
-                bytebuff1 = bytebuff2 = 0;
                 buff2 = (buff2 | (buff1 >> ready_bits));
             }
             ready_bits += bps;
@@ -9577,7 +9668,6 @@ static int rotateContigSamples32bits(uint16_t rotation, uint16_t spp,
 
             if (ready_bits < 32)
             { /* add another bps bits to the buffer */
-                bytebuff1 = bytebuff2 = bytebuff3 = bytebuff4 = 0;
                 buff2 = (buff2 | (buff1 >> ready_bits));
             }
             else /* If we have a full buffer's worth, write it out */
@@ -10082,7 +10172,6 @@ static int reverseSamples16bits(uint16_t spp, uint16_t bps, uint32_t width,
 
             if (ready_bits < 8)
             { /* add another bps bits to the buffer */
-                bytebuff = 0;
                 buff2 = (buff2 | (buff1 >> ready_bits));
             }
             else /* If we have a full buffer's worth, write it out */
@@ -10158,7 +10247,6 @@ static int reverseSamples24bits(uint16_t spp, uint16_t bps, uint32_t width,
 
             if (ready_bits < 16)
             { /* add another bps bits to the buffer */
-                bytebuff1 = bytebuff2 = 0;
                 buff2 = (buff2 | (buff1 >> ready_bits));
             }
             else /* If we have a full buffer's worth, write it out */
@@ -10259,7 +10347,6 @@ static int reverseSamples32bits(uint16_t spp, uint16_t bps, uint32_t width,
 
             if (ready_bits < 32)
             { /* add another bps bits to the buffer */
-                bytebuff1 = bytebuff2 = bytebuff3 = bytebuff4 = 0;
                 buff2 = (buff2 | (buff1 >> ready_bits));
             }
             else /* If we have a full buffer's worth, write it out */

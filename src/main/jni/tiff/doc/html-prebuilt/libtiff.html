@@ -3,14 +3,14 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Using The TIFF Library &#8212; LibTIFF 4.5.1 documentation</title>
-    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="_static/sphinxdoc.css" />
-    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-    <script src="_static/doctools.js"></script>
-    <script src="_static/sphinx_highlight.js"></script>
+    <title>Using The TIFF Library &#8212; LibTIFF 4.7.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b849a4e9" />
+    <link rel="stylesheet" type="text/css" href="_static/sphinxdoc.css?v=0a676766" />
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js?v=9f25de62"></script>
+    <script src="_static/doctools.js?v=888ff710"></script>
+    <script src="_static/sphinx_highlight.js?v=4825356b"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Multi Page / Multi Image TIFF" href="multi_page.html" />
@@ -28,7 +28,7 @@
         <li class="right" >
           <a href="terms.html" title="Terminology"
              accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">LibTIFF 4.5.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">LibTIFF 4.7.0 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Using The TIFF Library</a></li> 
       </ul>
     </div>  
@@ -115,10 +115,17 @@ compatibility on machines with a segmented architecture.
 (On 32-bit UNIX systems these routines just call the normal <code class="xref c c-func docutils literal notranslate"><span class="pre">malloc()</span></code>,
 <code class="xref c c-func docutils literal notranslate"><span class="pre">realloc()</span></code>, and <code class="xref c c-func docutils literal notranslate"><span class="pre">free()</span></code> routines in the C library.)</p>
 <p>To deal with segmented pointer issues <code class="docutils literal notranslate"><span class="pre">libtiff</span></code> also provides
-<a class="reference internal" href="functions/TIFFmemory.html#c._TIFFmemcpy" title="_TIFFmemcpy"><code class="xref c c-func docutils literal notranslate"><span class="pre">_TIFFmemcpy()</span></code></a>, <a class="reference internal" href="functions/TIFFmemory.html#c._TIFFmemset" title="_TIFFmemset"><code class="xref c c-func docutils literal notranslate"><span class="pre">_TIFFmemset()</span></code></a>, and <code class="xref c c-func docutils literal notranslate"><span class="pre">_TIFFmemmove()</span></code>
+<a class="reference internal" href="functions/TIFFmemory.html#c._TIFFmemcpy" title="_TIFFmemcpy"><code class="xref c c-func docutils literal notranslate"><span class="pre">_TIFFmemcpy()</span></code></a>, <a class="reference internal" href="functions/TIFFmemory.html#c._TIFFmemset" title="_TIFFmemset"><code class="xref c c-func docutils literal notranslate"><span class="pre">_TIFFmemset()</span></code></a>, and <a class="reference internal" href="functions/TIFFmemory.html#c._TIFFmemcmp" title="_TIFFmemcmp"><code class="xref c c-func docutils literal notranslate"><span class="pre">_TIFFmemcmp()</span></code></a>
 routines that mimic the equivalent ANSI C routines, but that are
 intended for use with memory allocated through <a class="reference internal" href="functions/TIFFmemory.html#c._TIFFmalloc" title="_TIFFmalloc"><code class="xref c c-func docutils literal notranslate"><span class="pre">_TIFFmalloc()</span></code></a>
 and <a class="reference internal" href="functions/TIFFmemory.html#c._TIFFrealloc" title="_TIFFrealloc"><code class="xref c c-func docutils literal notranslate"><span class="pre">_TIFFrealloc()</span></code></a>.</p>
+<p>With <code class="docutils literal notranslate"><span class="pre">libtiff</span></code> 4.5 a method was introduced to limit the internal
+memory allocation that functions are allowed to request per call
+(see  <a class="reference internal" href="functions/TIFFOpenOptions.html#c.TIFFOpenOptionsSetMaxSingleMemAlloc" title="TIFFOpenOptionsSetMaxSingleMemAlloc"><code class="xref c c-func docutils literal notranslate"><span class="pre">TIFFOpenOptionsSetMaxSingleMemAlloc()</span></code></a> and <a class="reference internal" href="functions/TIFFOpen.html#c.TIFFOpenExt" title="TIFFOpenExt"><code class="xref c c-func docutils literal notranslate"><span class="pre">TIFFOpenExt()</span></code></a>).</p>
+<p>With <code class="docutils literal notranslate"><span class="pre">libtiff</span></code> 4.6.1 a method was introduced to limit the internal
+cumulated memory allocation that functions are allowed to request for a given
+TIFF handle
+(see  <a class="reference internal" href="functions/TIFFOpenOptions.html#c.TIFFOpenOptionsSetMaxCumulatedMemAlloc" title="TIFFOpenOptionsSetMaxCumulatedMemAlloc"><code class="xref c c-func docutils literal notranslate"><span class="pre">TIFFOpenOptionsSetMaxCumulatedMemAlloc()</span></code></a> and <a class="reference internal" href="functions/TIFFOpen.html#c.TIFFOpenExt" title="TIFFOpenExt"><code class="xref c c-func docutils literal notranslate"><span class="pre">TIFFOpenExt()</span></code></a>).</p>
 </section>
 <section id="error-handling">
 <h2>Error Handling<a class="headerlink" href="#error-handling" title="Permalink to this heading">¶</a></h2>
@@ -129,6 +136,9 @@ All error messages are directed to a single global error handler
 routine that can be specified with a call to <a class="reference internal" href="functions/TIFFError.html#c.TIFFSetErrorHandler" title="TIFFSetErrorHandler"><code class="xref c c-func docutils literal notranslate"><span class="pre">TIFFSetErrorHandler()</span></code></a>.
 Likewise warning messages are directed to a single handler routine
 that can be specified with a call to <a class="reference internal" href="functions/TIFFWarning.html#c.TIFFSetWarningHandler" title="TIFFSetWarningHandler"><code class="xref c c-func docutils literal notranslate"><span class="pre">TIFFSetWarningHandler()</span></code></a></p>
+<p>Further application-specific and per-TIFF handle (re-entrant) error handler
+and warning handler can be set. Please refer to <a class="reference internal" href="functions/TIFFError.html"><span class="doc">TIFFError</span></a>
+and <a class="reference internal" href="functions/TIFFOpenOptions.html"><span class="doc">TIFFOpenOptions</span></a>.</p>
 </section>
 <section id="basic-file-handling">
 <h2>Basic File Handling<a class="headerlink" href="#basic-file-handling" title="Permalink to this heading">¶</a></h2>
@@ -154,7 +164,7 @@ a <code class="docutils literal notranslate"><span class="pre">&quot;w&quot;</sp
 <span class="n">main</span><span class="p">()</span>
 <span class="p">{</span>
 <span class="w">    </span><span class="n">TIFF</span><span class="o">*</span><span class="w"> </span><span class="n">tif</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TIFFOpen</span><span class="p">(</span><span class="s">&quot;foo.tif&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;w&quot;</span><span class="p">);</span>
-<span class="w">    </span><span class="p">...</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="n">stuff</span><span class="w"> </span><span class="p">...</span>
+<span class="w">    </span><span class="cm">/* ... do stuff ... */</span>
 <span class="w">    </span><span class="n">TIFFClose</span><span class="p">(</span><span class="n">tif</span><span class="p">);</span>
 <span class="p">}</span>
 </pre></div>
@@ -171,6 +181,23 @@ valid TIFF image.  Consequently, when writing a TIFF image it is necessary
 to always call <a class="reference internal" href="functions/TIFFClose.html#c.TIFFClose" title="TIFFClose"><code class="xref c c-func docutils literal notranslate"><span class="pre">TIFFClose()</span></code></a> or <a class="reference internal" href="functions/TIFFFlush.html#c.TIFFFlush" title="TIFFFlush"><code class="xref c c-func docutils literal notranslate"><span class="pre">TIFFFlush()</span></code></a> to flush any
 buffered information to a file.  Note that if you call <a class="reference internal" href="functions/TIFFClose.html#c.TIFFClose" title="TIFFClose"><code class="xref c c-func docutils literal notranslate"><span class="pre">TIFFClose()</span></code></a>
 you do not need to call <a class="reference internal" href="functions/TIFFFlush.html#c.TIFFFlush" title="TIFFFlush"><code class="xref c c-func docutils literal notranslate"><span class="pre">TIFFFlush()</span></code></a>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>In order to prevent out-of-memory issues when opening a TIFF file
+<a class="reference internal" href="functions/TIFFOpen.html#c.TIFFOpenExt" title="TIFFOpenExt"><code class="xref c c-func docutils literal notranslate"><span class="pre">TIFFOpenExt()</span></code></a> can be used and then the maximum single memory
+limit in bytes that <code class="docutils literal notranslate"><span class="pre">libtiff</span></code> internal memory allocation functions
+are allowed to request per call can be set with
+<a class="reference internal" href="functions/TIFFOpenOptions.html#c.TIFFOpenOptionsSetMaxSingleMemAlloc" title="TIFFOpenOptionsSetMaxSingleMemAlloc"><code class="xref c c-func docutils literal notranslate"><span class="pre">TIFFOpenOptionsSetMaxSingleMemAlloc()</span></code></a>.</p>
+</div>
+<p>Example</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="n">tmsize_t</span><span class="w"> </span><span class="n">limit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="mi">256</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1024</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1024</span><span class="p">);</span>
+<span class="n">TIFFOpenOptions</span><span class="w"> </span><span class="o">*</span><span class="n">opts</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TIFFOpenOptionsAlloc</span><span class="p">();</span>
+<span class="n">TIFFOpenOptionsSetMaxSingleMemAlloc</span><span class="p">(</span><span class="n">opts</span><span class="p">,</span><span class="w"> </span><span class="n">limit</span><span class="p">);</span>
+<span class="n">TIFF</span><span class="w"> </span><span class="o">*</span><span class="n">tif</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TIFFOpenExt</span><span class="p">(</span><span class="s">&quot;foo.tif&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;w&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">opts</span><span class="p">);</span>
+<span class="n">TIFFOpenOptionsFree</span><span class="p">(</span><span class="n">opts</span><span class="p">);</span>
+<span class="cm">/* ... go on here ... */</span>
+</pre></div>
+</div>
 </section>
 <section id="tiff-directories">
 <h2>TIFF Directories<a class="headerlink" href="#tiff-directories" title="Permalink to this heading">¶</a></h2>
@@ -348,7 +375,7 @@ then the routine <a class="reference internal" href="functions/TIFFReadRGBAImage
 </div>
 <p>Note above that <a class="reference internal" href="functions/TIFFmemory.html#c._TIFFmalloc" title="_TIFFmalloc"><code class="xref c c-func docutils literal notranslate"><span class="pre">_TIFFmalloc()</span></code></a> is used to allocate memory for
 the raster passed to <a class="reference internal" href="functions/TIFFReadRGBAImage.html#c.TIFFReadRGBAImage" title="TIFFReadRGBAImage"><code class="xref c c-func docutils literal notranslate"><span class="pre">TIFFReadRGBAImage()</span></code></a>; this is important
-to insure the “appropriate type of memory” is passed on machines
+to insure the &quot;appropriate type of memory&quot; is passed on machines
 with segmented architectures.</p>
 <p>Alternatively, <a class="reference internal" href="functions/TIFFReadRGBAImage.html#c.TIFFReadRGBAImage" title="TIFFReadRGBAImage"><code class="xref c c-func docutils literal notranslate"><span class="pre">TIFFReadRGBAImage()</span></code></a> can be replaced with a
 more low-level interface that permits an application to have more
@@ -384,7 +411,7 @@ is:</p>
 </pre></div>
 </div>
 <p>However this usage does not take advantage of the more fine-grained
-control that’s possible.  That is, by using this interface it is
+control that's possible.  That is, by using this interface it is
 possible to:</p>
 <ul class="simple">
 <li><p>repeatedly fetch (and manipulate) an image without opening
@@ -398,7 +425,7 @@ handled by the core library</p></li>
 handle multiple files can cache decoding information in order to
 speedup the work required to display a TIFF image.</p>
 <p>The second item is the main reason for this interface.  By interposing
-a “put method” (the routine that is called to pack pixel data in
+a &quot;put method&quot; (the routine that is called to pack pixel data in
 the raster) it is possible share the core logic that understands how
 to deal with TIFF while packing the resultant pixels in a format that
 is optimized for the application.  This alternate format might be very
@@ -495,13 +522,13 @@ to handle either case one might use the following instead:</p>
 </pre></div>
 </div>
 <p>Beware however that if the following code were used instead to
-read data in the case <code class="docutils literal notranslate"><span class="pre">PLANARCONFIG_SEPARATE</span></code>,…</p>
+read data in the case <code class="docutils literal notranslate"><span class="pre">PLANARCONFIG_SEPARATE</span></code>,...</p>
 <div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">row</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">row</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">imagelength</span><span class="p">;</span><span class="w"> </span><span class="n">row</span><span class="o">++</span><span class="p">)</span>
 <span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">nsamples</span><span class="p">;</span><span class="w"> </span><span class="n">s</span><span class="o">++</span><span class="p">)</span>
 <span class="w">        </span><span class="n">TIFFReadScanline</span><span class="p">(</span><span class="n">tif</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span><span class="p">,</span><span class="w"> </span><span class="n">row</span><span class="p">,</span><span class="w"> </span><span class="n">s</span><span class="p">);</span>
 </pre></div>
 </div>
-<p>…then problems would arise if <code class="docutils literal notranslate"><span class="pre">RowsPerStrip</span></code> was not one
+<p>...then problems would arise if <code class="docutils literal notranslate"><span class="pre">RowsPerStrip</span></code> was not one
 because the order in which scanlines are requested would require
 random access to data within strips (something that is not supported
 by the library when strips are compressed).</p>
@@ -588,7 +615,7 @@ contiguously or separately.  When separated, all the tiles for a sample
 are colocated in the file.  That is, all the tiles for sample 0 appear
 before the tiles for sample 1, etc.</p>
 <p>Tiles and strips may also be extended in a z dimension to form
-volumes.  Data volumes are organized as “slices”.  That is, all the
+volumes.  Data volumes are organized as &quot;slices&quot;.  That is, all the
 data for a slice is colocated.  Volumes whose data is organized in
 tiles can also have a tile depth so that data can be organized in
 cubes.</p>
@@ -644,7 +671,7 @@ and written with <a class="reference internal" href="functions/TIFFWriteEncodedT
 </section>
 <section id="other-stuff">
 <h2>Other Stuff<a class="headerlink" href="#other-stuff" title="Permalink to this heading">¶</a></h2>
-<p>Some other stuff will almost certainly go here…</p>
+<p>Some other stuff will almost certainly go here...</p>
 </section>
 </section>
 
@@ -722,13 +749,13 @@ and written with <a class="reference internal" href="functions/TIFFWriteEncodedT
         <li class="right" >
           <a href="terms.html" title="Terminology"
              >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">LibTIFF 4.5.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">LibTIFF 4.7.0 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Using The TIFF Library</a></li> 
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 1988-2022, LibTIFF contributors.
-      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.0.1.
+    &#169; Copyright 1988-2022, LibTIFF contributors.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.1.2.
     </div>
   </body>
 </html>

@@ -68,7 +68,7 @@
 /* Define to 1 if you have the `jbg_newlen' function. */
 #undef HAVE_JBG_NEWLEN
 
-/* libjpeg-turbo >= 2.2 dual mode enabled */
+/* libjpeg-turbo >= 3.0 dual mode enabled */
 #undef HAVE_JPEGTURBO_DUAL_MODE_8_12
 
 /* Define to 1 if you have the <memory.h> header file. */

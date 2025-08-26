@@ -3,14 +3,14 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Defining New TIFF Tags &#8212; LibTIFF 4.5.1 documentation</title>
-    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="_static/sphinxdoc.css" />
-    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-    <script src="_static/doctools.js"></script>
-    <script src="_static/sphinx_highlight.js"></script>
+    <title>Defining New TIFF Tags &#8212; LibTIFF 4.7.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b849a4e9" />
+    <link rel="stylesheet" type="text/css" href="_static/sphinxdoc.css?v=0a676766" />
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js?v=9f25de62"></script>
+    <script src="_static/doctools.js?v=888ff710"></script>
+    <script src="_static/sphinx_highlight.js?v=4825356b"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="TIFF Tools Overview" href="tools.html" />
@@ -28,7 +28,7 @@
         <li class="right" >
           <a href="internals.html" title="Modifying The TIFF Library"
              accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">LibTIFF 4.5.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">LibTIFF 4.7.0 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Defining New TIFF Tags</a></li> 
       </ul>
     </div>  
@@ -87,7 +87,7 @@ For ASCII fields with variable length, this field is <code class="xref c c-macro
 <span class="kt"><span class="pre">short</span></span><span class="w"> </span><span class="sig-prename descclassname"><span class="n"><span class="pre">TIFFFieldInfo</span></span><span class="p"><span class="pre">.</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">field_writecount</span></span></span><a class="headerlink" href="#c.TIFFFieldInfo.field_writecount" title="Permalink to this definition">¶</a><br /></dt>
 <dd><p>The number of values which should be written.
 Generally the same as field_readcount.  A few built-in exceptions exist, but
-I haven’t analysed why they differ.</p>
+I haven't analysed why they differ.</p>
 </dd></dl>
 
 <dl class="c member">
@@ -258,7 +258,7 @@ architecture can then be avoided.</p>
 should be added to the <span class="c-expr sig sig-inline c"><span class="n">tiffFieldInfo</span><span class="p">[</span><span class="p">]</span></span> list in <code class="file docutils literal notranslate"><span class="pre">tif_dirinfo.c</span></code>.
 Ensure that new tags are added in sorted order by the tag number.</p>
 <p>Normally new built-in tags should be defined with <code class="xref c c-macro docutils literal notranslate"><span class="pre">FIELD_CUSTOM</span></code>; however, if
-it is desirable for the tag value to have it’s own field in the <code class="xref c c-struct docutils literal notranslate"><span class="pre">TIFFDirectory</span></code>
+it is desirable for the tag value to have it's own field in the <code class="xref c c-struct docutils literal notranslate"><span class="pre">TIFFDirectory</span></code>
 structure, then you will need to <code class="docutils literal notranslate"><span class="pre">#define</span></code> a new <code class="xref c c-macro docutils literal notranslate"><span class="pre">FIELD_</span></code> value for it, and
 add appropriate handling as follows:</p>
 <ol class="arabic">
@@ -281,10 +281,10 @@ for the new tag.</p></li>
 (e.g. the array for <code class="docutils literal notranslate"><span class="pre">TransferFunction</span></code>) and requires
 special processing,
 then add the appropriate code to <a class="reference internal" href="functions/TIFFReadDirectory.html#c.TIFFReadDirectory" title="TIFFReadDirectory"><code class="xref c c-func docutils literal notranslate"><span class="pre">TIFFReadDirectory()</span></code></a> and
-<a class="reference internal" href="functions/TIFFWriteDirectory.html#c.TIFFWriteDirectory" title="TIFFWriteDirectory"><code class="xref c c-func docutils literal notranslate"><span class="pre">TIFFWriteDirectory()</span></code></a>.  You’re best off finding a similar tag and
+<a class="reference internal" href="functions/TIFFWriteDirectory.html#c.TIFFWriteDirectory" title="TIFFWriteDirectory"><code class="xref c c-func docutils literal notranslate"><span class="pre">TIFFWriteDirectory()</span></code></a>.  You're best off finding a similar tag and
 cribbing code.</p></li>
 <li><dl class="simple">
-<dt>Add support to <a class="reference internal" href="functions/TIFFPrintDirectory.html#c.TIFFPrintDirectory" title="TIFFPrintDirectory"><code class="xref c c-func docutils literal notranslate"><span class="pre">TIFFPrintDirectory()</span></code></a> in <code class="file docutils literal notranslate"><span class="pre">tif_print.c</span></code></dt><dd><p>to print the tag’s value.</p>
+<dt>Add support to <a class="reference internal" href="functions/TIFFPrintDirectory.html#c.TIFFPrintDirectory" title="TIFFPrintDirectory"><code class="xref c c-func docutils literal notranslate"><span class="pre">TIFFPrintDirectory()</span></code></a> in <code class="file docutils literal notranslate"><span class="pre">tif_print.c</span></code></dt><dd><p>to print the tag's value.</p>
 </dd>
 </dl>
 </li>
@@ -327,7 +327,7 @@ merge them into the core tags at initialization time using
 <li><p>Fill in the get and set routines.  Be sure to call the parent method
 for tags that you are not handled directly.  Also be sure to set the
 <code class="docutils literal notranslate"><span class="pre">FIELD_*</span></code> bits for tags that are to be written to the file.  Note that
-you can create “pseudo-tags” by defining tags that are processed
+you can create &quot;pseudo-tags&quot; by defining tags that are processed
 exclusively in the get/set routines and never written to file (see
 the handling of <code class="xref c c-macro docutils literal notranslate"><span class="pre">TIFFTAG_FAXMODE</span></code> in <code class="file docutils literal notranslate"><span class="pre">tif_fax3.c</span></code>
 for an example of this).</p></li>
@@ -405,13 +405,13 @@ is room for, just increase <code class="xref c c-macro docutils literal notransl
         <li class="right" >
           <a href="internals.html" title="Modifying The TIFF Library"
              >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">LibTIFF 4.5.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">LibTIFF 4.7.0 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Defining New TIFF Tags</a></li> 
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 1988-2022, LibTIFF contributors.
-      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.0.1.
+    &#169; Copyright 1988-2022, LibTIFF contributors.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.1.2.
     </div>
   </body>
 </html>

@@ -3,14 +3,14 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Modifying The TIFF Library &#8212; LibTIFF 4.5.1 documentation</title>
-    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="_static/sphinxdoc.css" />
-    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-    <script src="_static/doctools.js"></script>
-    <script src="_static/sphinx_highlight.js"></script>
+    <title>Modifying The TIFF Library &#8212; LibTIFF 4.7.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b849a4e9" />
+    <link rel="stylesheet" type="text/css" href="_static/sphinxdoc.css?v=0a676766" />
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js?v=9f25de62"></script>
+    <script src="_static/doctools.js?v=888ff710"></script>
+    <script src="_static/sphinx_highlight.js?v=4825356b"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Defining New TIFF Tags" href="addingtags.html" />
@@ -28,7 +28,7 @@
         <li class="right" >
           <a href="functions/_TIFFRewriteField.html" title="_TIFFRewriteField"
              accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">LibTIFF 4.5.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">LibTIFF 4.7.0 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Modifying The TIFF Library</a></li> 
       </ul>
     </div>  
@@ -89,7 +89,7 @@ the default set because they depend on ancillary software
 packages that are not distributed with LibTIFF.</p>
 <p>Support for JPEG compression is controlled by <code class="xref c c-macro docutils literal notranslate"><span class="pre">JPEG_SUPPORT</span></code>.
 The JPEG codec that comes with LibTIFF is designed for
-use with release 5 or later of the Independent JPEG Group’s freely
+use with release 5 or later of the Independent JPEG Group's freely
 available software distribution.
 This software can be retrieved from the directory
 <a class="reference external" href="ftp://ftp.uu.net/graphics/jpeg">ftp://ftp.uu.net/graphics/jpeg</a>.</p>
@@ -162,10 +162,10 @@ and
 <td><p>experimental Deflate scheme (compression 32946)</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="xref c c-macro docutils literal notranslate"><span class="pre">PIXARLOG_SUPPORT</span></code></p></td>
-<td><p>Pixar’s compression scheme for high-resolution color images (compression 32909)</p></td>
+<td><p>Pixar's compression scheme for high-resolution color images (compression 32909)</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="xref c c-macro docutils literal notranslate"><span class="pre">SGILOG_SUPPORT</span></code></p></td>
-<td><p>SGI’s compression scheme for high-resolution color images (compression 34676 and 34677)</p></td>
+<td><p>SGI's compression scheme for high-resolution color images (compression 34676 and 34677)</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="xref c c-macro docutils literal notranslate"><span class="pre">COLORIMETRY_SUPPORT</span></code></p></td>
 <td><p>support for the TIFF 6.0 colorimetry tags</p></td>
@@ -179,7 +179,7 @@ and
 <tr class="row-odd"><td><p><code class="xref c c-macro docutils literal notranslate"><span class="pre">ICC_SUPPORT</span></code></p></td>
 <td><p>support for the ICC Profile tag; see
 <em>The ICC Profile Format Specification</em>,
-Annex B.3 “Embedding ICC Profiles in TIFF Files”;
+Annex B.3 &quot;Embedding ICC Profiles in TIFF Files&quot;;
 available at
 <a class="reference external" href="http://www.color.org/">http://www.color.org/</a></p></td>
 </tr>
@@ -194,7 +194,7 @@ IEEE floating point).
 The <strong class="program">configure</strong> shell script generates the appropriate
 include files and make files for UNIX systems.
 Makefiles exist for non-UNIX platforms that the
-code runs on—this work has mostly been done by other people.</p>
+code runs on---this work has mostly been done by other people.</p>
 <p>In general, the code is guaranteed to work only on SGI machines.
 In practice it is highly portable to any 32-bit or 64-bit system and much
 work has been done to insure portability to 16-bit systems.
@@ -410,7 +410,7 @@ does not care about (e.g. transfer function tables).</p>
 <section id="adding-new-builtin-codecs">
 <h2>Adding New Builtin Codecs<a class="headerlink" href="#adding-new-builtin-codecs" title="Permalink to this heading">¶</a></h2>
 <p>To add builtin support for a new compression algorithm, you can either
-use the “tag-extension” trick to override the handling of the
+use the &quot;tag-extension&quot; trick to override the handling of the
 TIFF Compression tag (see <a class="reference internal" href="addingtags.html"><span class="doc">Defining New TIFF Tags</span></a>),
 or do the following to add support directly to the core library:</p>
 <ul class="simple">
@@ -462,11 +462,11 @@ strip, and a user-supplied scanline buffer that compression schemes
 place decoded data into.  When encoding data the data in the
 user-supplied scanline buffer is encoded into the raw data buffer (from
 where it is written).  Decoding routines should never have to explicitly
-read data – a full strip/tile’s worth of raw data is read and scanlines
+read data -- a full strip/tile's worth of raw data is read and scanlines
 never cross strip boundaries.  Encoding routines must be cognizant of
 the raw data buffer size and call <code class="xref c c-func docutils literal notranslate"><span class="pre">TIFFFlushData1()</span></code> when necessary.
 Note that any pending data is automatically flushed when a new strip/tile is
-started, so there’s no need do that in the tif_postencode routine (if
+started, so there's no need do that in the tif_postencode routine (if
 one exists).  Bit order is automatically handled by the library when
 a raw strip or tile is filled.  If the decoded samples are interpreted
 by the decoding routine before they are passed back to the user, then
@@ -479,7 +479,7 @@ differencing code in the routines in <code class="file docutils literal notransl
 <code class="xref c c-member docutils literal notranslate"><span class="pre">tif_rawcp</span></code> in a <code class="xref c c-struct docutils literal notranslate"><span class="pre">TIFF</span></code> structure
 are associated with the raw data buffer.  <code class="xref c c-member docutils literal notranslate"><span class="pre">tif_rawcc</span></code> must be non-zero
 for the library to automatically flush data.  The variable
-<code class="xref c c-member docutils literal notranslate"><span class="pre">tif_scanlinesize</span></code> is the size a user’s scanline buffer should be.  The
+<code class="xref c c-member docutils literal notranslate"><span class="pre">tif_scanlinesize</span></code> is the size a user's scanline buffer should be.  The
 variable <code class="xref c c-member docutils literal notranslate"><span class="pre">tif_tilesize</span></code> is the size of a tile for tiled images.  This
 should not normally be used by compression routines, except where it
 relates to the compression algorithm.  That is, the <code class="docutils literal notranslate"><span class="pre">cc</span></code> parameter to the
@@ -490,11 +490,11 @@ for example, to decode/encode entire strips of data.</p>
 <p>In general, if you have a new compression algorithm to add, work from
 the code for an existing routine.  In particular,
 <code class="file docutils literal notranslate"><span class="pre">tif_dumpmode.c</span></code>
-has the trivial code for the “nil” compression scheme,
+has the trivial code for the &quot;nil&quot; compression scheme,
 <code class="file docutils literal notranslate"><span class="pre">tif_packbits.c</span></code> is a
 simple byte-oriented scheme that has to watch out for buffer
 boundaries, and <code class="file docutils literal notranslate"><span class="pre">tif_lzw.c</span></code> has the LZW scheme that has the most
-complexity – it tracks the buffer boundary at a bit level.
+complexity -- it tracks the buffer boundary at a bit level.
 Of course, using a private compression scheme (or private tags) limits
 the portability of your TIFF files.</p>
 </section>
@@ -565,13 +565,13 @@ the portability of your TIFF files.</p>
         <li class="right" >
           <a href="functions/_TIFFRewriteField.html" title="_TIFFRewriteField"
              >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">LibTIFF 4.5.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="index.html">LibTIFF 4.7.0 documentation</a> &#187;</li>
         <li class="nav-item nav-item-this"><a href="">Modifying The TIFF Library</a></li> 
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 1988-2022, LibTIFF contributors.
-      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.0.1.
+    &#169; Copyright 1988-2022, LibTIFF contributors.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.1.2.
     </div>
   </body>
 </html>

@@ -27,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "TIFFRGBAIMAGE" "3tiff" "Jun 10, 2023" "4.5" "LibTIFF"
+.TH "TIFFRGBAIMAGE" "3tiff" "Sep 11, 2024" "4.7" "LibTIFF"
 .SH NAME
 TIFFRGBAImage \- read and decode an image into a raster
 .SH SYNOPSIS
@@ -74,7 +74,7 @@ characteristics: bits/sample, samples/pixel, photometric, etc.
 Decoding state is encapsulated in a \fI\%TIFFRGBAImage\fP
 structure making it possible to capture state for multiple images
 and quickly switch between them.
-The target raster format can be customized to a particular application’s
+The target raster format can be customized to a particular application\(aqs
 needs by installing custom routines that manipulate image data
 according to application requirements.
 .sp
@@ -131,7 +131,7 @@ possible data in the image have been requested.
 .sp
 To use the core support for reading and processing  TIFF images, but
 write the resulting raster data in a different format one need only
-override the “put methods” used to store raster data.
+override the \(dqput methods\(dq used to store raster data.
 These methods are are defined in the \fI\%TIFFRGBAImage\fP
 structure and initially setup by \fI\%TIFFRGBAImageBegin()\fP
 to point to routines that pack raster data in the default
@@ -185,7 +185,7 @@ variable \fBputContig\fP\&.)
 .sp
 The \fI\%TIFFRGBAImage()\fP routines support the most commonly
 encountered flavors of TIFF.  It is possible to extend this support by
-overriding the “get method” invoked by \fI\%TIFFRGBAImageGet()\fP
+overriding the \(dqget method\(dq invoked by \fI\%TIFFRGBAImageGet()\fP
 to read TIFF image data.
 Details of doing this are a bit involved, it is best to make a copy
 of an existing get method and modify it to suit the needs of an

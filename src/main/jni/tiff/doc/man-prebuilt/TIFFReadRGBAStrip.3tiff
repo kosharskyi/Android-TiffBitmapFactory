@@ -27,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "TIFFREADRGBASTRIP" "3tiff" "Jun 10, 2023" "4.5" "LibTIFF"
+.TH "TIFFREADRGBASTRIP" "3tiff" "Sep 11, 2024" "4.7" "LibTIFF"
 .SH NAME
 TIFFReadRGBAStrip \- read and decode an image strip into a fixed-format raster
 .SH SYNOPSIS
@@ -88,9 +88,9 @@ Palette image colormaps that appear to be incorrectly written as 8\-bit values
 are automatically scaled to 16\-bits.
 .sp
 \fI\%TIFFReadRGBAStrip()\fP is just a wrapper around the more general
-\fI\%TIFFRGBAImage\fP facilities.  It’s main advantage over the similar
+\fI\%TIFFRGBAImage\fP facilities.  It\(aqs main advantage over the similar
 \fI\%TIFFReadRGBAImage()\fP function is that for large images a single
-buffer capable of holding the whole image doesn’t need to be allocated,
+buffer capable of holding the whole image doesn\(aqt need to be allocated,
 only enough for one strip.  The \fI\%TIFFReadRGBATile()\fP function
 does a similar operation for tiled images.
 .SH RETURN VALUES
