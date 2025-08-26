@@ -49,13 +49,14 @@ LOCAL_TIFF_SRC_FILES := \
     	tiff/libtiff/tif_zip.c \
     	tiff/libtiff/tif_zstd.c
 
-LOCAL_TIFF_SRC_FILES += tiff/port/lfind.c 
+LOCAL_TIFF_SRC_FILES += tiff/port/getopt.c
 #######################LIBTIFF#################################
 
 LOCAL_SRC_FILES:= $(LOCAL_TIFF_SRC_FILES)
 LOCAL_C_INCLUDES += \
 					$(LOCAL_PATH)/tiff/libtiff \
-					$(LOCAL_PATH)/jpeg
+					$(LOCAL_PATH)/jpeg \
+					$(LOCAL_PATH)/tiff/port
 
 
 LOCAL_CFLAGS += -DAVOID_TABLES
