@@ -1,7 +1,7 @@
 # Android-TiffBitmapFactory
 TiffBitmapFactory is an Android library that allows opening and saving images in *.tif format (See [Wikipedia](https://en.wikipedia.org/wiki/Tagged_Image_File_Format)) on Android devices.
 
-For decoding and encoding *.tif files it uses the native library [libtiff](https://github.com/dumganhar/libtiff). Also for images that compressed with jpeg compression scheme used [libjpeg9 for android](https://github.com/Suvitruf/libjpeg-version-9-android) (the IJG code). For converting from PNG to TIFF and from TIFF to PNG used library [libpng-android](https://github.com/julienr/libpng-android).
+For decoding and encoding *.tif files it uses the native library [libtiff](https://github.com/dumganhar/libtiff). Also for images that compressed with jpeg compression scheme used [libjpeg-turbo](https://github.com/libjpeg-turbo/libjpeg-turbo/). For converting from PNG to TIFF and from TIFF to PNG used library [libpng-android](https://github.com/julienr/libpng-android).
 
 Just now it has possibility to open tif image as mutable bitmap, read count of directory in file, apply sample rate for bitmap decoding and choose directory to decode.
 While saving there is available few(most popular) compression mods and some additiona fields that can be writen to file, like author or copyright.
@@ -9,13 +9,6 @@ While saving there is available few(most popular) compression mods and some addi
 Minimum Android API level 21
 
 Supported architectures: all
-
-### Installation
-Just add to your gradle dependencies :
-```
-implementation 'io.github.beyka:Android-TiffBitmapFactory:0.9.9.1'
-```
-And do not forget to add WRITE_EXTERNAL_STORAGE permission to main project manifest
 
 ### Build from sources
 To build native part of library use [Android-NDK-bundle](https://developer.android.com/tools/sdk/ndk/index.html).
@@ -206,8 +199,4 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
 Special thanks to [dennis508](https://github.com/dennis508)    for providing of incremental reading of TIFF file
-
-
-### Applications that uses library:
-[B Tiff Viewer](https://play.google.com/store/apps/details?id=com.beyka.btiffviewer)
 
